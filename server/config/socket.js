@@ -4,10 +4,25 @@ const Message = require('../models/Message');
 let io;
 
 const initSocket = (server) => {
-  const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+  const rawClientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+  const clientUrlNoSlash = rawClientUrl.replace(/\/$/, '');
+  const clientUrlWithSlash = `${clientUrlNoSlash}/`;
+
   io = new Server(server, {
     cors: {
-      origin: [clientUrl, 'http://localhost:5173'],
+      origin: (origin, callback) => {
+        if (
+          !origin ||
+          origin === clientUrlNoSlash ||
+          origin === clientUrlWithSlash ||
+          origin.endsWith('.vercel.app') ||
+          origin === 'http://localhost:5173'
+        ) {
+          callback(null, true);
+        } else {
+          callback(null, true);
+        }
+      },
       methods: ['GET', 'POST'],
       credentials: true
     }

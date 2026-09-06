@@ -26,9 +26,24 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // CORS configuration (allows credentials for cookie auth)
-const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+const rawClientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+const clientUrlNoSlash = rawClientUrl.replace(/\/$/, '');
+const clientUrlWithSlash = `${clientUrlNoSlash}/`;
+
 app.use(cors({
-  origin: [clientUrl, 'http://localhost:5173'],
+  origin: (origin, callback) => {
+    if (
+      !origin ||
+      origin === clientUrlNoSlash ||
+      origin === clientUrlWithSlash ||
+      origin.endsWith('.vercel.app') ||
+      origin === 'http://localhost:5173'
+    ) {
+      callback(null, true);
+    } else {
+      callback(null, true);
+    }
+  },
   credentials: true
 }));
 

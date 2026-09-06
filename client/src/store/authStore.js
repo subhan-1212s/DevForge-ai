@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import axios from 'axios';
+import api from '../services/api';
 
 export const useAuthStore = create((set) => ({
   user: null,
@@ -13,7 +13,7 @@ export const useAuthStore = create((set) => ({
   checkAuth: async () => {
     set({ loading: true });
     try {
-      const { data } = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
+      const { data } = await api.post('/auth/refresh');
       set({ user: data.user, accessToken: data.accessToken, loading: false });
       return data.user;
     } catch (error) {
