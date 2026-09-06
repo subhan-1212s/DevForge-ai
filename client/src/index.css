@@ -1,0 +1,139 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary-50: #f9fafb;
+  --color-primary-100: #f3f4f6;
+  --color-primary-200: #e5e7eb;
+  --color-primary-300: #d1d5db;
+  --color-primary-400: #9ca3af;
+  --color-primary-500: #6b7280;
+  --color-primary-600: #4b5563;
+  --color-primary-700: #374151;
+  --color-primary-800: #1f2937;
+  --color-primary-900: #111827;
+  --color-primary-950: #030712;
+
+  --color-apple-blue: #0071e3;
+  --color-apple-blue-hover: #0077ed;
+  --color-apple-charcoal: #1d1d1f;
+  --color-apple-gray: #86868b;
+  --color-apple-bg: #f5f5f7;
+  --color-apple-border: rgba(0, 0, 0, 0.08);
+
+  --font-display: 'Outfit', 'Inter', sans-serif;
+  --font-sans: 'Inter', sans-serif;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-apple-bg);
+    color: var(--color-apple-charcoal);
+    font-family: var(--font-sans);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Custom premium scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-apple-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d2d2d7;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a6;
+}
+
+/* Premium Light Panel */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--color-apple-border);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.02);
+}
+
+/* Apple-style card */
+.glass-card {
+  background: #ffffff;
+  border: 1px solid var(--color-apple-border);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.02);
+  transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.glass-card:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  transform: translateY(-2px);
+}
+
+/* Minimalist Light Inputs */
+.glass-input {
+  background: #ffffff;
+  border: 1px solid #d2d2d7;
+  border-radius: 8px;
+  color: var(--color-apple-charcoal);
+  transition: all 0.2s ease-in-out;
+}
+
+.glass-input:focus {
+  outline: none;
+  border-color: var(--color-apple-blue);
+  box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.15);
+  background: #ffffff;
+}
+
+/* Apple Premium Buttons */
+.btn-premium-primary {
+  background: var(--color-apple-charcoal);
+  color: #ffffff;
+  border: 1px solid transparent;
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.btn-premium-primary:hover {
+  background: #000000;
+  transform: translateY(-1px);
+}
+
+.btn-premium-secondary {
+  background: #e8e8ed;
+  color: var(--color-apple-charcoal);
+  border: 1px solid transparent;
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.btn-premium-secondary:hover {
+  background: #d2d2d7;
+}
+
+/* Typography styles */
+.text-gradient {
+  background: linear-gradient(135deg, #1d1d1f 30%, #515154 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-blue {
+  background: linear-gradient(135deg, #0071e3 0%, #1d1d1f 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Helper background shadows */
+.shadow-premium {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+}
+
+.shadow-premium-lg {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.06);
+}
