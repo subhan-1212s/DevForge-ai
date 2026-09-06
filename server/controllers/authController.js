@@ -16,10 +16,11 @@ const generateRefreshToken = (userId) => {
 
 // Set refresh token in HttpOnly cookie
 const setRefreshTokenCookie = (res, token) => {
+  const isProd = process.env.NODE_ENV === 'production';
   res.cookie('refreshToken', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
   });
 };
@@ -165,10 +166,11 @@ exports.refresh = async (req, res) => {
 // @access  Public
 exports.logout = async (req, res) => {
   try {
+    const isProd = process.env.NODE_ENV === 'production';
     res.clearCookie('refreshToken', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict'
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax'
     });
     res.status(200).json({ success: true, message: 'Logged out successfully' });
   } catch (error) {
