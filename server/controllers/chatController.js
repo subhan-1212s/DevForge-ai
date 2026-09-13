@@ -13,11 +13,21 @@ exports.sendMessage = async (req, res) => {
       sender: req.user._id,
       text,
       workspaceId,
-      projectId: projectId || null,
+      projectId: (projectId && projectId !== 'undefined' && projectId !== 'null') ? projectId : null,
       attachments: attachments || []
     });
 
     const populatedMsg = await Message.findById(message._id).populate('sender', 'name email avatar');
+
+    // Broadcast via Socket.IO room if initialized
+    try {
+      const { getIO } = require('../config/socket');
+      const io = getIO();
+      const room = (projectId && projectId !== 'undefined' && projectId !== 'null') ? `project:${projectId}` : `workspace:${workspaceId}`;
+      io.to(room).emit('receive_message', populatedMsg);
+    } catch (socketErr) {
+      console.warn("Socket broadcast warning:", socketErr.message);
+    }
 
     res.status(201).json({ success: true, message: populatedMsg });
   } catch (error) {
@@ -37,16 +47,14 @@ exports.getMessages = async (req, res) => {
 
     const query = { workspaceId };
     
-    if (projectId) {
+    if (projectId && projectId !== 'undefined' && projectId !== 'null') {
       query.projectId = projectId;
-    } else {
-      query.projectId = null;
     }
 
     const messages = await Message.find(query)
       .populate('sender', 'name email avatar')
       .sort({ createdAt: 1 })
-      .limit(100);
+      .limit(200);
 
     res.status(200).json({ success: true, messages });
   } catch (error) {

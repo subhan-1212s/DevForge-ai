@@ -36,18 +36,30 @@ export default function ProjectChat() {
     }
     fetchMessages();
 
-    // Socket Connection
-    socket.connect();
-    socket.emit('join_project', projectId);
+    // Socket Connection Setup
+    if (!socket.connected) {
+      socket.connect();
+    }
+    if (projectId) {
+      socket.emit('join_project', projectId);
+    } else if (workspaceId) {
+      socket.emit('join_workspace', workspaceId);
+    }
 
-    // Socket message event listener
-    socket.on('receive_message', (msg) => {
-      setMessages((prev) => [...prev, msg]);
-    });
+    const handleReceiveMessage = (msg) => {
+      setMessages((prev) => {
+        if (prev.some((m) => m._id === msg._id)) return prev;
+        return [...prev, msg];
+      });
+    };
+
+    socket.on('receive_message', handleReceiveMessage);
 
     return () => {
-      socket.emit('leave_project', projectId);
-      socket.disconnect();
+      socket.off('receive_message', handleReceiveMessage);
+      if (projectId) {
+        socket.emit('leave_project', projectId);
+      }
     };
   }, [workspaceId, projectId]);
 
@@ -56,20 +68,43 @@ export default function ProjectChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = (e) => {
+  const handleSend = async (e) => {
     e.preventDefault();
     if (!inputText.trim()) return;
 
-    // Send via socket connection
-    socket.emit('send_message', {
-      text: inputText,
-      workspaceId,
-      projectId,
-      senderId: user.id
-    });
-
+    const currentText = inputText.trim();
     setInputText('');
+
+    try {
+      // 1. Send via HTTP API (Guarantees DB save & populated sender)
+      const { data } = await api.post('/messages', {
+        text: currentText,
+        workspaceId,
+        projectId
+      });
+
+      if (data.success && data.message) {
+        setMessages((prev) => {
+          if (prev.some((m) => m._id === data.message._id)) return prev;
+          return [...prev, data.message];
+        });
+      }
+
+      // 2. Broadcast via Socket.IO if connected
+      if (socket.connected) {
+        socket.emit('send_message', {
+          text: currentText,
+          workspaceId,
+          projectId,
+          senderId: user?.id || user?._id
+        });
+      }
+    } catch (err) {
+      console.error('Failed to send chat message:', err);
+    }
   };
+
+  const userId = user?.id || user?._id;
 
   return (
     <div className="max-w-4xl mx-auto h-[80vh] flex flex-col bg-white border border-black/5 rounded-2xl shadow-sm overflow-hidden font-sans text-[#1d1d1f]">
@@ -100,7 +135,7 @@ export default function ProjectChat() {
           </div>
         ) : (
           messages.map((msg, i) => {
-            const isMe = msg.sender?._id === user.id || msg.sender === user.id;
+            const isMe = msg.sender?._id === userId || msg.sender === userId;
             return (
               <div 
                 key={msg._id || i}
