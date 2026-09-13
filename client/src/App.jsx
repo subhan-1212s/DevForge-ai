@@ -78,9 +78,11 @@ export default function App() {
         <Route path="workspace/:workspaceId/project/:projectId/kanban" element={<KanbanBoard />} />
         <Route path="workspace/:workspaceId/project/:projectId/chat" element={<ProjectChat />} />
         <Route path="workspace/:workspaceId/project/:projectId/editor" element={<CodePad />} />
+        <Route path="workspace/:workspaceId/project/:projectId/codepad" element={<CodePad />} />
         <Route path="workspace/:workspaceId/project/:projectId/wiki" element={<Wiki />} />
         <Route path="workspace/:workspaceId/project/:projectId/bugs" element={<BugTracker />} />
         <Route path="workspace/:workspaceId/project/:projectId/ai" element={<AiSuite />} />
+        <Route path="workspace/:workspaceId/project/:projectId/ai-suite" element={<AiSuite />} />
         <Route path="workspace/:workspaceId/project/:projectId/analytics" element={<Analytics />} />
       </Route>
 
