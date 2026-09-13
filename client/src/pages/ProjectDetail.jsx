@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { socket } from '../services/socket';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import api from '../services/api';
 import { motion } from 'framer-motion';
@@ -19,7 +20,12 @@ import {
   CheckSquare,
   BookOpen,
   AlertOctagon,
-  BarChart3
+  BarChart3,
+  X,
+  TrendingUp,
+  Activity,
+  Zap,
+  CheckCircle2
 } from 'lucide-react';
 
 export default function ProjectDetail() {
@@ -37,6 +43,17 @@ export default function ProjectDetail() {
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState('');
 
+  // Live Metrics State
+  const [metrics, setMetrics] = useState({
+    totalTasks: 0,
+    completedTasks: 0,
+    inProgressTasks: 0,
+    totalBugs: 0,
+    criticalBugs: 0,
+    wikiCount: 0,
+    efficiencyRate: 0
+  });
+
   // Form edit fields
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
@@ -45,31 +62,82 @@ export default function ProjectDetail() {
   const [editProgress, setEditProgress] = useState(0);
   const [editRepo, setEditRepo] = useState('');
 
-  useEffect(() => {
-    const loadProject = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const { data } = await api.get(`/projects/${projectId}`);
-        setProject(data.project);
-        setEditName(data.project.name);
-        setEditDesc(data.project.description || '');
-        setEditStatus(data.project.status);
-        setEditPriority(data.project.priority);
-        setEditProgress(data.project.progress);
-        setEditRepo(data.project.repositoryUrl || '');
-      } catch (err) {
-        setError('Failed to fetch project details.');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const loadProjectData = async () => {
+    try {
+      const { data: pData } = await api.get(`/projects/${projectId}`);
+      setProject(pData.project);
+      setEditName(pData.project.name);
+      setEditDesc(pData.project.description || '');
+      setEditStatus(pData.project.status);
+      setEditPriority(pData.project.priority);
+      setEditProgress(pData.project.progress);
+      setEditRepo(pData.project.repositoryUrl || '');
 
+      // Load live metric aggregations
+      const [tasksRes, bugsRes, docsRes] = await Promise.allSettled([
+        api.get(`/tasks?projectId=${projectId}`),
+        api.get(`/bugs?projectId=${projectId}`),
+        api.get(`/docs?projectId=${projectId}`)
+      ]);
+
+      const tasks = tasksRes.status === 'fulfilled' ? (tasksRes.value.data.tasks || []) : [];
+      const bugs = bugsRes.status === 'fulfilled' ? (bugsRes.value.data.bugs || []) : [];
+      const docs = docsRes.status === 'fulfilled' ? (docsRes.value.data.documents || []) : [];
+
+      const totalTasks = tasks.length;
+      const completedTasks = tasks.filter(t => t.status === 'done').length;
+      const inProgressTasks = tasks.filter(t => t.status === 'in_progress').length;
+
+      const totalBugs = bugs.length;
+      const criticalBugs = bugs.filter(b => (b.severity === 'critical' || b.severity === 'high') && b.status !== 'resolved').length;
+
+      const efficiencyRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : (pData.project.progress || 0);
+
+      setMetrics({
+        totalTasks,
+        completedTasks,
+        inProgressTasks,
+        totalBugs,
+        criticalBugs,
+        wikiCount: docs.length,
+        efficiencyRate
+      });
+    } catch (err) {
+      setError('Failed to fetch project details.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     if (workspaceId && !currentWorkspace) {
       fetchWorkspaceDetails(workspaceId);
     }
-    loadProject();
-  }, [workspaceId, projectId, fetchWorkspaceDetails, currentWorkspace]);
+    loadProjectData();
+
+    // Socket.IO Real-Time Listener
+    if (!socket.connected) {
+      socket.connect();
+    }
+    socket.emit('join_project', projectId);
+
+    const handleProjectUpdated = (updatedProject) => {
+      setProject(updatedProject);
+    };
+
+    socket.on('project_updated', handleProjectUpdated);
+    socket.on('task_created', loadProjectData);
+    socket.on('task_updated', loadProjectData);
+    socket.on('bug_created', loadProjectData);
+
+    return () => {
+      socket.off('project_updated', handleProjectUpdated);
+      socket.off('task_created', loadProjectData);
+      socket.off('task_updated', loadProjectData);
+      socket.off('bug_created', loadProjectData);
+      socket.emit('leave_project', projectId);
+    };
+  }, [workspaceId, projectId]);
 
   const handleUpdate = async (e) => {
     e.preventDefault();
@@ -95,258 +163,397 @@ export default function ProjectDetail() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="w-6 h-6 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-3 border-[#0066ff] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   if (!project) {
     return (
-      <div className="text-center py-12">
-        <p className="text-red-600">Project details could not be loaded.</p>
-        <button onClick={() => navigate(-1)} className="mt-4 text-[#0071e3] flex items-center justify-center gap-2 mx-auto">
-          <ArrowLeft className="h-4 w-4" /> Go Back
-        </button>
+      <div className="p-8 text-center text-xs text-[#64748b] space-y-4">
+        <p>Project not found or deleted.</p>
+        <Link to={`/workspace/${workspaceId}`} className="btn-premium-brand inline-flex px-4 py-2 text-xs">
+          Return to Workspace
+        </Link>
       </div>
     );
   }
 
-  const isEligibleToEdit = ['owner', 'admin', 'developer'].includes(currentWorkspaceRole);
-
+  // Developer Workspace Tools Suite
   const toolCards = [
-    { title: 'Kanban Board', icon: Layout, color: 'text-indigo-600', desc: 'Manage tasks and drag cards between columns', link: `/workspace/${workspaceId}/project/${projectId}/kanban` },
-    { title: 'Project Chat', icon: MessageSquare, color: 'text-purple-600', desc: 'Realtime chat, emojis, and media attachments', link: `/workspace/${workspaceId}/project/${projectId}/chat` },
-    { title: 'Live Code Editor', icon: Code2, color: 'text-emerald-600', desc: 'Collaborative code pad powered by Monaco Editor', link: `/workspace/${workspaceId}/project/${projectId}/editor` },
-    { title: 'AI Assistant', icon: Sparkles, color: 'text-amber-600', desc: 'Workspace-aware AI model for code review and docs', link: `/workspace/${workspaceId}/project/${projectId}/ai` },
-    { title: 'Wiki & Docs', icon: BookOpen, color: 'text-sky-600', desc: 'Markdown wiki logs, specifications, and endpoints mapping', link: `/workspace/${workspaceId}/project/${projectId}/wiki` },
-    { title: 'Bug Tracker', icon: AlertOctagon, color: 'text-red-500', desc: 'Log issues, severities, steps to reproduce, and assignees', link: `/workspace/${workspaceId}/project/${projectId}/bugs` },
-    { title: 'Project Analytics', icon: BarChart3, color: 'text-rose-500', desc: 'View developer velocity rates, completed tasks, and bug charts', link: `/workspace/${workspaceId}/project/${projectId}/analytics` },
+    {
+      title: 'Kanban Sprint Board',
+      desc: 'Agile backlog management, sprint columns, drag & drop cards.',
+      icon: CheckSquare,
+      link: `/workspace/${workspaceId}/project/${projectId}/kanban`,
+      color: 'text-[#0066ff] bg-[#eff6ff]',
+      badge: `${metrics.totalTasks} Tasks (${metrics.completedTasks} Done)`
+    },
+    {
+      title: 'Real-Time Team Chat',
+      desc: 'Instant channel messaging and online teammate indicators.',
+      icon: MessageSquare,
+      link: `/workspace/${workspaceId}/project/${projectId}/chat`,
+      color: 'text-[#10b981] bg-[#ecfdf5]',
+      badge: 'Socket Room Active'
+    },
+    {
+      title: 'AI Developer Suite',
+      desc: 'Refactor code snippets, analyze stack traces, and generate git commits.',
+      icon: Sparkles,
+      link: `/workspace/${workspaceId}/project/${projectId}/ai-suite`,
+      color: 'text-[#f59e0b] bg-[#fffbeb]',
+      badge: 'Gemini AI Engine'
+    },
+    {
+      title: 'Bug Tracker & QA Log',
+      desc: 'Log critical bugs, steps to reproduce, and severity classifications.',
+      icon: AlertOctagon,
+      link: `/workspace/${workspaceId}/project/${projectId}/bugs`,
+      color: 'text-[#f43f5e] bg-[#fff1f2]',
+      badge: `${metrics.totalBugs} Tickets (${metrics.criticalBugs} Critical)`
+    },
+    {
+      title: 'Project Wiki & Specs',
+      desc: 'Technical architecture specs and documentation chapters.',
+      icon: BookOpen,
+      link: `/workspace/${workspaceId}/project/${projectId}/wiki`,
+      color: 'text-[#8b5cf6] bg-[#f5f3ff]',
+      badge: `${metrics.wikiCount} Chapters`
+    },
+    {
+      title: 'Live Code Sandbox',
+      desc: 'HTML/CSS/JS code editor with live execution engine.',
+      icon: Code2,
+      link: `/workspace/${workspaceId}/project/${projectId}/codepad`,
+      color: 'text-[#2563eb] bg-blue-50',
+      badge: 'Monaco Preview Engine'
+    }
   ];
 
-  return (
-    <div className="max-w-6xl mx-auto space-y-6 pb-12 font-sans">
-      {/* Header bar */}
-      <div className="flex items-center justify-between border-b border-black/5 pb-4">
-        <Link 
-          to={`/workspace/${workspaceId}`} 
-          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-[#0071e3] transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span>Back to Workspace Overview</span>
-        </Link>
+  // SVG Donut Calculations
+  const circumference = 2 * Math.PI * 45;
+  const strokeOffset = circumference - (metrics.efficiencyRate / 100) * circumference;
 
-        {isEligibleToEdit && !editing && (
-          <button
-            onClick={() => setEditing(true)}
-            className="btn-premium-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
+  return (
+    <div className="max-w-7xl mx-auto space-y-8 pb-12 font-sans text-[#0f172a]">
+      {/* Navigation Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-4">
+        <div className="flex items-center gap-3">
+          <Link 
+            to={`/workspace/${workspaceId}`}
+            className="p-2 rounded-full bg-white border border-slate-200 hover:bg-slate-100 text-[#64748b] transition-colors"
           >
-            <Edit3 className="h-3.5 w-3.5" />
-            Edit Settings
-          </button>
-        )}
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-[#64748b] uppercase tracking-wider font-display">Project Dashboard</span>
+              <span className="px-2.5 py-0.5 rounded-full bg-[#eff6ff] text-[#0066ff] text-[9px] font-bold uppercase border border-blue-200/60">
+                {project.status.replace('_', ' ')}
+              </span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-bold text-[#0f172a] tracking-tight">{project.name}</h1>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {['owner', 'admin'].includes(currentWorkspaceRole) && (
+            <button
+              onClick={() => setEditing(!editing)}
+              className="btn-premium-secondary inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold cursor-pointer"
+            >
+              <Edit3 className="h-4 w-4 text-[#0066ff]" />
+              <span>{editing ? 'Cancel Settings' : 'Project Settings'}</span>
+            </button>
+          )}
+        </div>
       </div>
 
-      {error && (
-        <div className="p-4 rounded-lg bg-red-50 border border-red-100 text-red-600 text-xs">
-          {error}
-        </div>
-      )}
+      {/* Edit Form Drawer */}
+      {editing && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="premium-glass-card p-6 bg-white space-y-4"
+        >
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+            <h3 className="text-sm font-bold text-[#0f172a]">Project Configuration & Parameters</h3>
+            <button onClick={() => setEditing(false)} className="p-1 rounded-full hover:bg-slate-100">
+              <X className="h-4 w-4 text-[#64748b]" />
+            </button>
+          </div>
 
-      {/* Main Info Card */}
-      <div className="bg-white rounded-2xl p-6 md:p-8 border border-black/5 relative overflow-hidden shadow-sm">
-        <div className="absolute top-0 bottom-0 left-0 w-1.5 bg-[#0071e3]" />
-        
-        {editing ? (
-          <form onSubmit={handleUpdate} className="space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <form onSubmit={handleUpdate} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#86868b] mb-1.5 font-display">Project Name</label>
-                <input
-                  type="text"
-                  required
+                <label className="block text-xs font-semibold text-[#334155] mb-1">Project Name</label>
+                <input 
+                  type="text" 
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="glass-input w-full p-2.5 text-sm"
+                  className="w-full px-3 py-2 bg-slate-50 focus:bg-white border border-slate-200 focus:border-[#0066ff] rounded-xl text-xs text-[#0f172a] outline-none"
                 />
               </div>
+
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#86868b] mb-1.5 font-display">Repository URL</label>
-                <input
-                  type="url"
+                <label className="block text-xs font-semibold text-[#334155] mb-1">Repository URL</label>
+                <input 
+                  type="text" 
                   value={editRepo}
                   onChange={(e) => setEditRepo(e.target.value)}
-                  placeholder="https://github.com/org/repo"
-                  className="glass-input w-full p-2.5 text-sm"
+                  placeholder="https://github.com/..."
+                  className="w-full px-3 py-2 bg-slate-50 focus:bg-white border border-slate-200 focus:border-[#0066ff] rounded-xl text-xs text-[#0f172a] outline-none"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#86868b] mb-1.5 font-display">Description</label>
-              <textarea
+              <label className="block text-xs font-semibold text-[#334155] mb-1">Description</label>
+              <textarea 
+                rows={2}
                 value={editDesc}
                 onChange={(e) => setEditDesc(e.target.value)}
-                rows={3}
-                className="glass-input w-full p-2.5 text-sm resize-none"
+                className="w-full px-3 py-2 bg-slate-50 focus:bg-white border border-slate-200 focus:border-[#0066ff] rounded-xl text-xs text-[#0f172a] outline-none resize-none"
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#86868b] mb-1.5 font-display">Status</label>
-                <select
+                <label className="block text-xs font-semibold text-[#334155] mb-1">Status</label>
+                <select 
                   value={editStatus}
                   onChange={(e) => setEditStatus(e.target.value)}
-                  className="glass-input w-full p-2.5 text-sm bg-white"
+                  className="w-full px-3 py-2 bg-slate-50 focus:bg-white border border-slate-200 focus:border-[#0066ff] rounded-xl text-xs text-[#0f172a] outline-none"
                 >
                   <option value="planning">Planning</option>
-                  <option value="active">Active</option>
-                  <option value="paused">Paused</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="review">Code Review</option>
                   <option value="completed">Completed</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#86868b] mb-1.5 font-display">Priority</label>
-                <select
+                <label className="block text-xs font-semibold text-[#334155] mb-1">Priority</label>
+                <select 
                   value={editPriority}
                   onChange={(e) => setEditPriority(e.target.value)}
-                  className="glass-input w-full p-2.5 text-sm bg-white"
+                  className="w-full px-3 py-2 bg-slate-50 focus:bg-white border border-slate-200 focus:border-[#0066ff] rounded-xl text-xs text-[#0f172a] outline-none"
                 >
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
                   <option value="high">High</option>
-                  <option value="critical">Critical</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#86868b] mb-1.5 font-display">Progress ({editProgress}%)</label>
-                <div className="flex items-center gap-4 mt-3">
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={editProgress}
-                    onChange={(e) => setEditProgress(e.target.value)}
-                    className="w-full h-1.5 bg-[#e8e8ed] rounded-lg appearance-none cursor-pointer accent-[#0071e3]"
-                  />
-                </div>
+                <label className="block text-xs font-semibold text-[#334155] mb-1">Progress ({editProgress}%)</label>
+                <input 
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={editProgress}
+                  onChange={(e) => setEditProgress(e.target.value)}
+                  className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#0066ff]"
+                />
               </div>
             </div>
 
-            <div className="flex gap-3 pt-3 border-t border-black/5">
-              <button
-                type="button"
-                onClick={() => setEditing(false)}
-                className="btn-premium-secondary flex-1 py-2 rounded-lg text-xs font-semibold cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+              <button 
                 type="submit"
-                className="btn-premium-primary flex-1 py-2 rounded-lg text-xs font-semibold cursor-pointer"
+                className="btn-premium-brand px-4 py-2 rounded-xl text-xs font-semibold"
               >
-                Save Settings
+                Save Project Parameters
               </button>
             </div>
           </form>
-        ) : (
-          <div className="space-y-6">
-            <div>
-              <div className="flex flex-wrap items-center gap-3">
-                <h2 className="text-xl sm:text-2xl font-extrabold text-[#1d1d1f] font-display">{project.name}</h2>
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#0071e3]/10 text-[#0071e3] border border-[#0071e3]/20">
-                  {project.status}
-                </span>
-                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${project.priority === 'critical' ? 'bg-red-50 text-red-600 border border-red-100' : project.priority === 'high' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-slate-100 text-slate-500 border border-black/5'}`}>
-                  {project.priority} priority
-                </span>
-              </div>
-              <p className="text-slate-500 text-xs sm:text-sm mt-2 max-w-2xl">{project.description || 'No description provided.'}</p>
-            </div>
+        </motion.div>
+      )}
 
-            {/* Bottom details block */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-6 border-t border-black/5">
-              <div className="space-y-1">
-                <span className="text-[9px] font-bold uppercase tracking-wider text-[#86868b] font-display">Tech Stack</span>
-                <div className="flex flex-wrap gap-1.5 mt-1">
-                  {project.techStack && project.techStack.map((tech, i) => (
-                    <span key={i} className="px-1.5 py-0.5 rounded bg-[#f5f5f7] border border-black/5 text-slate-600 font-mono text-[9px]">
-                      {tech}
-                    </span>
-                  ))}
-                  {(!project.techStack || project.techStack.length === 0) && (
-                    <span className="text-xs text-slate-400 italic">None specified</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <span className="text-[9px] font-bold uppercase tracking-wider text-[#86868b] font-display">Repository Link</span>
-                <div className="mt-1">
-                  {project.repositoryUrl ? (
-                    <a 
-                      href={project.repositoryUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="inline-flex items-center gap-1 text-xs text-[#0071e3] hover:underline"
-                    >
-                      <GitFork className="h-3.5 w-3.5" />
-                      <span>{new URL(project.repositoryUrl).hostname}</span>
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  ) : (
-                    <span className="text-xs text-slate-400 italic">No repository linked</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex justify-between text-[9px] font-bold uppercase tracking-wider text-[#86868b] font-display">
-                  <span>Development Progress</span>
-                  <span className="text-[#0071e3]">{project.progress}%</span>
-                </div>
-                <div className="w-full h-1.5 bg-[#e8e8ed] rounded-full overflow-hidden border border-black/5 mt-1">
-                  <div 
-                    className="h-full bg-[#0071e3] rounded-full"
-                    style={{ width: `${project.progress}%` }}
-                  />
-                </div>
-              </div>
-            </div>
+      {/* ANALYTICS & VISUAL GRAPHS SECTION */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-[#0066ff]" />
+            <h2 className="text-base font-bold text-[#0f172a]">Project Analytics & Performance Metrics</h2>
           </div>
-        )}
-      </div>
-
-      {/* Grid: Developer Tools List */}
-      <div>
-        <div className="flex items-center gap-2 mb-4 font-display">
-          <Sparkles className="h-4.5 w-4.5 text-[#0071e3]" />
-          <h2 className="text-md font-bold text-[#1d1d1f]">Developer Workspace Suites</h2>
+          <span className="text-[11px] text-[#64748b] font-medium flex items-center gap-1">
+            <Zap className="h-3.5 w-3.5 text-[#10b981]" />
+            Live Socket Synced
+          </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Analytics Widgets Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Donut Completion Gauge */}
+          <div className="premium-glass-card p-5 bg-white flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold text-[#0f172a]">Sprint Completion Gauge</span>
+              <TrendingUp className="h-4 w-4 text-[#10b981]" />
+            </div>
+
+            <div className="flex items-center justify-center my-2 relative">
+              <svg className="w-32 h-32 transform -rotate-90">
+                <circle
+                  cx="64"
+                  cy="64"
+                  r="45"
+                  stroke="#f1f5f9"
+                  strokeWidth="10"
+                  fill="transparent"
+                />
+                <circle
+                  cx="64"
+                  cy="64"
+                  r="45"
+                  stroke="#0066ff"
+                  strokeWidth="10"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeOffset}
+                  strokeLinecap="round"
+                  fill="transparent"
+                  className="transition-all duration-700 ease-out"
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-xl font-extrabold text-[#0f172a]">{metrics.efficiencyRate}%</span>
+                <span className="text-[10px] text-[#64748b] font-semibold">Done</span>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-[#64748b]">
+              <span>Completed: <strong>{metrics.completedTasks}</strong></span>
+              <span>Pending: <strong>{metrics.totalTasks - metrics.completedTasks}</strong></span>
+            </div>
+          </div>
+
+          {/* Velocity SVG Area Chart */}
+          <div className="premium-glass-card p-5 bg-white flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-[#0f172a]">Sprint Velocity Area Curve</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#eff6ff] text-[#0066ff] border border-blue-200/60">
+                Live Curve
+              </span>
+            </div>
+
+            <div className="my-2">
+              <svg viewBox="0 0 200 80" className="w-full h-24 overflow-visible">
+                <defs>
+                  <linearGradient id="velocityGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#0066ff" stopOpacity="0.35" />
+                    <stop offset="100%" stopColor="#0066ff" stopOpacity="0.0" />
+                  </linearGradient>
+                </defs>
+
+                <line x1="0" y1="20" x2="200" y2="20" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3 3" />
+                <line x1="0" y1="40" x2="200" y2="40" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3 3" />
+                <line x1="0" y1="60" x2="200" y2="60" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3 3" />
+
+                <path 
+                  d="M0,70 Q40,55 80,40 T160,25 T200,10 L200,75 L0,75 Z" 
+                  fill="url(#velocityGrad)" 
+                />
+
+                <path 
+                  d="M0,70 Q40,55 80,40 T160,25 T200,10" 
+                  fill="none" 
+                  stroke="#0066ff" 
+                  strokeWidth="3" 
+                  strokeLinecap="round" 
+                />
+
+                <circle cx="40" cy="58" r="3" fill="#ffffff" stroke="#0066ff" strokeWidth="2" />
+                <circle cx="80" cy="40" r="3" fill="#ffffff" stroke="#0066ff" strokeWidth="2" />
+                <circle cx="120" cy="30" r="3" fill="#ffffff" stroke="#0066ff" strokeWidth="2" />
+                <circle cx="160" cy="25" r="3" fill="#ffffff" stroke="#0066ff" strokeWidth="2" />
+                <circle cx="200" cy="10" r="4" fill="#0066ff" />
+              </svg>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-[#64748b]">
+              <span>Active Sprint Tasks</span>
+              <span className="font-bold text-[#0066ff]">{metrics.inProgressTasks} In Progress</span>
+            </div>
+          </div>
+
+          {/* QA Health & Severity Bar Chart */}
+          <div className="premium-glass-card p-5 bg-white flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold text-[#0f172a]">QA & Bug Severity Health</span>
+              <AlertOctagon className="h-4 w-4 text-[#f43f5e]" />
+            </div>
+
+            <div className="space-y-3 my-1">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="text-[#f43f5e] font-semibold">Critical / High</span>
+                  <span className="font-bold text-[#0f172a]">{metrics.criticalBugs} Tickets</span>
+                </div>
+                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                  <div className="bg-[#f43f5e] h-full" style={{ width: `${metrics.totalBugs > 0 ? (metrics.criticalBugs / metrics.totalBugs) * 100 : 0}%` }} />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="text-[#0066ff] font-semibold">Total Logged Tickets</span>
+                  <span className="font-bold text-[#0f172a]">{metrics.totalBugs} Tickets</span>
+                </div>
+                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                  <div className="bg-[#0066ff] h-full" style={{ width: `${metrics.totalBugs > 0 ? 100 : 0}%` }} />
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-[#64748b]">
+              <span>QA Status</span>
+              <span className="font-bold text-[#10b981] flex items-center gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                System Stable
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* DEVELOPER WORKSPACE TOOLS CARDS SECTION */}
+      <div className="space-y-4 pt-2">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-[#0f172a] uppercase tracking-wider font-display">
+            Developer Workspace Suite
+          </h2>
+          <span className="text-xs text-[#64748b]">6 Integrated Tools</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {toolCards.map((card, i) => (
             <Link 
               key={i} 
               to={card.link}
-              className="block bg-white rounded-2xl p-5 border border-black/5 shadow-sm relative overflow-hidden group hover:border-black/15 transition-all duration-200"
+              className="premium-glass-card premium-glass-card-hover p-5 bg-white flex flex-col justify-between group"
             >
-              <div className={`p-2.5 rounded-xl bg-slate-100 inline-flex ${card.color} mb-3`}>
-                <card.icon className="h-5 w-5" />
+              <div>
+                <div className="flex items-center justify-between mb-3.5">
+                  <div className={`p-3 rounded-2xl inline-flex ${card.color}`}>
+                    <card.icon className="h-5 w-5" />
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-[#334155] font-bold text-[10px]">
+                    {card.badge}
+                  </span>
+                </div>
+                
+                <h3 className="text-sm font-bold text-[#0f172a] group-hover:text-[#0066ff] transition-colors">
+                  {card.title}
+                </h3>
+                <p className="text-xs text-[#64748b] mt-1.5 leading-relaxed">
+                  {card.desc}
+                </p>
               </div>
-              
-              <h3 className="text-sm font-bold text-[#1d1d1f] group-hover:text-[#0071e3] transition-colors font-display">
-                {card.title}
-              </h3>
-              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                {card.desc}
-              </p>
 
-              <div className="mt-5 flex items-center gap-1 text-[9px] font-bold tracking-widest text-[#0071e3] uppercase font-display">
-                <span>Open Tool</span>
-                <ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
+              <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-[#0066ff] group-hover:text-[#0052cc] transition-colors">
+                <span>Open Workspace Tool</span>
+                <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
               </div>
             </Link>
           ))}
