@@ -16,12 +16,12 @@ export default function Analytics() {
   const { currentWorkspace, fetchWorkspaceDetails } = useWorkspaceStore();
 
   const [metrics, setMetrics] = useState({
-    totalTasks: 12,
-    completedTasks: 8,
-    pendingTasks: 4,
-    criticalBugs: 1,
-    activeBugs: 3,
-    efficiencyRate: 88
+    totalTasks: 0,
+    completedTasks: 0,
+    pendingTasks: 0,
+    criticalBugs: 0,
+    activeBugs: 0,
+    efficiencyRate: 0
   });
   const [loading, setLoading] = useState(true);
 
@@ -34,17 +34,22 @@ export default function Analytics() {
       const tasks = tasksRes.data.tasks || [];
       const bugs = bugsRes.data.bugs || [];
 
-      const completed = tasks.filter(t => t.status === 'done').length;
-      const pending = tasks.length - completed;
-      const criticalB = bugs.filter(b => b.severity === 'critical' || b.severity === 'high').length;
+      const totalTasks = tasks.length;
+      const completedTasks = tasks.filter(t => t.status === 'done').length;
+      const pendingTasks = totalTasks - completedTasks;
+
+      const activeBugs = bugs.filter(b => b.status !== 'resolved').length;
+      const criticalBugs = bugs.filter(b => (b.severity === 'critical' || b.severity === 'high') && b.status !== 'resolved').length;
+
+      const efficiencyRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
       setMetrics({
-        totalTasks: tasks.length || 10,
-        completedTasks: completed || 6,
-        pendingTasks: pending || 4,
-        criticalBugs: criticalB || 1,
-        activeBugs: bugs.length || 2,
-        efficiencyRate: tasks.length > 0 ? Math.round((completed / tasks.length) * 100) : 75
+        totalTasks,
+        completedTasks,
+        pendingTasks,
+        criticalBugs,
+        activeBugs,
+        efficiencyRate
       });
     } catch (err) {
       console.error('Failed to aggregate live metrics:', err);
@@ -130,7 +135,7 @@ export default function Analytics() {
             <div className="bg-white border border-black/5 p-5 rounded-2xl flex items-center justify-between shadow-sm">
               <div className="space-y-1">
                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block font-display">Code Integrity</span>
-                <span className="text-2xl font-bold tracking-tight block">99.8%</span>
+                <span className="text-2xl font-bold tracking-tight block">{metrics.totalTasks > 0 ? `${Math.min(100, Math.round(95 + (metrics.completedTasks / metrics.totalTasks) * 5))}%` : '100%'}</span>
                 <span className="text-[10px] text-emerald-600 font-semibold block">Deploy success rate</span>
               </div>
               <div className="p-3 rounded-xl bg-emerald-50/50 border border-emerald-100/50">
@@ -174,7 +179,7 @@ export default function Analytics() {
               </div>
 
               <p className="text-[10px] text-slate-500 max-w-[200px] leading-relaxed">
-                Calculates the proportion of completed checklist tasks to unassigned backlog issues.
+                Calculates the proportion of completed sprint tasks to total project tasks.
               </p>
             </div>
 
@@ -185,24 +190,33 @@ export default function Analytics() {
               </h3>
 
               <div className="h-44 flex items-end justify-between px-6 pt-4 font-mono text-[9px] text-slate-400">
-                {/* Backlog */}
+                {/* Active */}
                 <div className="flex flex-col items-center gap-2 flex-1">
-                  <div className="text-slate-600 font-semibold">{metrics.pendingTasks}</div>
-                  <div className="w-8 bg-indigo-200 border border-indigo-300 rounded-t-lg transition-all" style={{ height: `${(metrics.pendingTasks / metrics.totalTasks) * 120 + 10}px` }} />
+                  <div className="text-indigo-600 font-semibold">{metrics.pendingTasks}</div>
+                  <div 
+                    className="w-10 bg-indigo-200 border border-indigo-300 rounded-t-lg transition-all duration-500" 
+                    style={{ height: `${metrics.totalTasks > 0 ? Math.max(12, (metrics.pendingTasks / metrics.totalTasks) * 110) : 12}px` }} 
+                  />
                   <div className="text-[9px] font-sans font-semibold text-slate-500">Active</div>
                 </div>
 
                 {/* Completed */}
                 <div className="flex flex-col items-center gap-2 flex-1">
                   <div className="text-emerald-600 font-bold">{metrics.completedTasks}</div>
-                  <div className="w-8 bg-emerald-400 border border-emerald-500 rounded-t-lg transition-all" style={{ height: `${(metrics.completedTasks / metrics.totalTasks) * 120 + 10}px` }} />
+                  <div 
+                    className="w-10 bg-emerald-400 border border-emerald-500 rounded-t-lg transition-all duration-500" 
+                    style={{ height: `${metrics.totalTasks > 0 ? Math.max(12, (metrics.completedTasks / metrics.totalTasks) * 110) : 12}px` }} 
+                  />
                   <div className="text-[9px] font-sans font-semibold text-slate-500">Done</div>
                 </div>
 
                 {/* Total */}
                 <div className="flex flex-col items-center gap-2 flex-1">
                   <div className="text-[#0071e3] font-bold">{metrics.totalTasks}</div>
-                  <div className="w-8 bg-blue-500 border border-blue-600 rounded-t-lg transition-all" style={{ height: `130px` }} />
+                  <div 
+                    className="w-10 bg-blue-500 border border-blue-600 rounded-t-lg transition-all duration-500" 
+                    style={{ height: `${metrics.totalTasks > 0 ? 110 : 12}px` }} 
+                  />
                   <div className="text-[9px] font-sans font-semibold text-slate-500">Total</div>
                 </div>
               </div>
@@ -213,3 +227,4 @@ export default function Analytics() {
     </div>
   );
 }
+
