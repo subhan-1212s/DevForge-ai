@@ -18,13 +18,24 @@ import { Terminal } from 'lucide-react';
 
 function ProtectedRoute({ children }) {
   const { user, loading, checkAuth } = useAuthStore();
-  const navigate = useNavigate();
 
   useEffect(() => {
+    let mounted = true;
     if (!user) {
       checkAuth();
     }
-  }, [user, checkAuth]);
+    // Safety timer to prevent infinite loading state if backend is unresponsive
+    const timer = setTimeout(() => {
+      if (mounted && useAuthStore.getState().loading) {
+        useAuthStore.setState({ loading: false });
+      }
+    }, 2500);
+
+    return () => {
+      mounted = false;
+      clearTimeout(timer);
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -33,9 +44,9 @@ function ProtectedRoute({ children }) {
           <Terminal className="h-6 w-6 text-indigo-400" />
         </div>
         <div className="w-36 h-1.5 bg-slate-900 rounded-full overflow-hidden border border-white/5">
-          <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full animate-pulse" style={{ width: '70%' }} />
+          <div className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full animate-pulse" style={{ width: '80%' }} />
         </div>
-        <p className="text-xs text-slate-500 font-sans">Initializing Workspace Environment...</p>
+        <p className="text-xs text-slate-400 font-sans tracking-wide">Connecting DevForge Workspace Environment...</p>
       </div>
     );
   }
