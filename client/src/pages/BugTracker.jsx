@@ -234,7 +234,7 @@ export default function BugTracker() {
                         {bug.assignee?.avatar ? (
                           <img src={bug.assignee.avatar} alt="Avatar" className="w-full h-full object-cover" />
                         ) : (
-                          bug.assignee ? bug.assignee.name.substring(0, 2).toUpperCase() : 'US'
+                          bug.assignee?.name ? bug.assignee.name.substring(0, 2).toUpperCase() : 'US'
                         )}
                       </div>
                       <span className="text-slate-600 font-sans truncate">{bug.assignee?.name || 'Unassigned'}</span>
@@ -311,7 +311,7 @@ export default function BugTracker() {
                         {selectedBug.assignee?.avatar ? (
                           <img src={selectedBug.assignee.avatar} alt="Avatar" className="w-full h-full object-cover" />
                         ) : (
-                          selectedBug.assignee ? selectedBug.assignee.name.substring(0, 2).toUpperCase() : 'US'
+                          selectedBug.assignee?.name ? selectedBug.assignee.name.substring(0, 2).toUpperCase() : 'US'
                         )}
                       </div>
                       <span className="text-xs font-semibold text-slate-700">{selectedBug.assignee?.name || 'Unassigned'}</span>

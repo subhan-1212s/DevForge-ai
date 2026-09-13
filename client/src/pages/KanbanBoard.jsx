@@ -281,10 +281,10 @@ export default function KanbanBoard() {
                       
                       {task.assignee && (
                         <div className="w-5 h-5 rounded-full bg-slate-200 border border-black/5 flex items-center justify-center font-bold text-[8px] text-slate-600 overflow-hidden">
-                          {task.assignee.avatar ? (
+                          {task.assignee?.avatar ? (
                             <img src={task.assignee.avatar} alt="Avatar" className="w-full h-full object-cover" />
                           ) : (
-                            task.assignee.name.substring(0, 2).toUpperCase()
+                            task.assignee?.name ? task.assignee.name.substring(0, 2).toUpperCase() : 'US'
                           )}
                         </div>
                       )}

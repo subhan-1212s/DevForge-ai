@@ -9,7 +9,7 @@ exports.createBug = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Title, project, and workspace IDs are required' });
     }
 
-    const bug = await Bug.create({
+    let bug = await Bug.create({
       title,
       description,
       severity: severity || 'medium',
@@ -20,6 +20,8 @@ exports.createBug = async (req, res) => {
       projectId,
       workspaceId
     });
+
+    bug = await bug.populate('assignee', 'name email avatar');
 
     res.status(201).json({ success: true, bug });
   } catch (error) {

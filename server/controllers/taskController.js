@@ -60,7 +60,7 @@ exports.createTask = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Title, project, and workspace IDs are required' });
     }
 
-    const task = await Task.create({
+    let task = await Task.create({
       title,
       description,
       priority: priority || 'medium',
@@ -71,6 +71,8 @@ exports.createTask = async (req, res) => {
       checklist: checklist || [],
       activity: [{ user: req.user._id, text: 'created this task' }]
     });
+
+    task = await task.populate('assignee', 'name email avatar');
 
     // Notify assignee if set
     if (assignee && assignee.toString() !== req.user._id.toString()) {
