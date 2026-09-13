@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
@@ -88,7 +88,7 @@ export default function Login() {
         newPassword
       });
       setResetSuccess(data.message || 'Password reset successful! You can now log in.');
-      setSearchParams({}); // Clear query params
+      setSearchParams({});
     } catch (err) {
       setResetError(err.response?.data?.message || 'Failed to reset password. Link may be expired.');
     } finally {
@@ -97,44 +97,44 @@ export default function Login() {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center bg-[#020617] px-4 font-sans overflow-hidden">
-      {/* Background Animated Gradient Mesh / Orbs */}
-      <div className="absolute top-1/4 -left-32 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl animate-pulse pointer-events-none" />
-      <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl animate-pulse pointer-events-none" style={{ animationDelay: '1s' }} />
+    <div className="relative min-h-screen flex items-center justify-center bg-[#f8fafc] px-4 font-sans overflow-hidden">
+      {/* Google Material Subtle Soft Ambient Glows */}
+      <div className="absolute top-1/4 -left-32 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl animate-pulse pointer-events-none" />
+      <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-indigo-400/10 rounded-full blur-3xl animate-pulse pointer-events-none" style={{ animationDelay: '1s' }} />
 
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         className="w-full max-w-md z-10"
       >
         {/* Brand Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center p-3.5 rounded-2xl bg-white/5 border border-white/10 shadow-2xl backdrop-blur-xl mb-4 group hover:scale-105 transition-transform duration-300">
-            <Terminal className="h-7 w-7 text-indigo-400 group-hover:rotate-6 transition-transform" />
+          <div className="inline-flex items-center justify-center p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-md mb-4 group hover:scale-105 transition-transform duration-300">
+            <Terminal className="h-7 w-7 text-[#1a73e8] group-hover:rotate-6 transition-transform" />
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white font-display">
-            DevForge <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">AI</span>
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 font-display">
+            DevForge <span className="text-[#1a73e8]">AI</span>
           </h1>
-          <p className="mt-2 text-xs text-slate-400 font-medium tracking-wide">
+          <p className="mt-2 text-xs text-slate-500 font-medium tracking-wide">
             Autonomous Collaborative Workspace Platform
           </p>
         </div>
 
-        {/* Form Container */}
-        <div className="bg-slate-900/80 backdrop-blur-2xl rounded-3xl p-8 border border-white/10 shadow-2xl relative overflow-hidden">
+        {/* Form Card Container */}
+        <div className="bg-white rounded-3xl p-8 border border-slate-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.06)] relative overflow-hidden">
           {resetToken ? (
             /* Set New Password Form when opening email reset link */
             <div>
-              <h2 className="text-xl font-bold text-white tracking-tight mb-2">
+              <h2 className="text-xl font-bold text-slate-900 tracking-tight mb-2">
                 Set New Password
               </h2>
-              <p className="text-xs text-slate-400 mb-6">
+              <p className="text-xs text-slate-500 mb-6">
                 Please enter a new password for your DevForge AI account.
               </p>
 
               {resetError && (
-                <div className="mb-6 p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2.5">
+                <div className="mb-6 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs flex items-center gap-2.5">
                   <AlertTriangle className="h-4 w-4 shrink-0" />
                   <span>{resetError}</span>
                 </div>
@@ -142,11 +142,11 @@ export default function Login() {
 
               <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 font-display">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2 font-display">
                     New Password
                   </label>
                   <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
+                    <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
                       <Lock className="h-4 w-4" />
                     </span>
                     <input
@@ -155,12 +155,12 @@ export default function Login() {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="•••••••• (Min. 6 characters)"
-                      className="w-full py-3 pl-10 pr-10 text-sm bg-slate-950/60 border border-white/10 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
+                      className="w-full py-3 pl-10 pr-10 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#1a73e8] focus:ring-2 focus:ring-[#1a73e8]/20 transition-all font-sans"
                     />
                     <button
                       type="button"
                       onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                     >
                       {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -168,11 +168,11 @@ export default function Login() {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 font-display">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2 font-display">
                     Confirm New Password
                   </label>
                   <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
+                    <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
                       <Lock className="h-4 w-4" />
                     </span>
                     <input
@@ -181,7 +181,7 @@ export default function Login() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full py-3 pl-10 pr-10 text-sm bg-slate-950/60 border border-white/10 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
+                      className="w-full py-3 pl-10 pr-10 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#1a73e8] focus:ring-2 focus:ring-[#1a73e8]/20 transition-all font-sans"
                     />
                   </div>
                 </div>
@@ -189,7 +189,7 @@ export default function Login() {
                 <button
                   type="submit"
                   disabled={resetLoading}
-                  className="w-full py-3.5 rounded-xl text-xs font-bold text-white uppercase tracking-wider bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-lg shadow-indigo-500/20 active:scale-[0.99] disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-2 mt-4"
+                  className="w-full py-3.5 rounded-xl text-xs font-bold text-white uppercase tracking-wider bg-[#1a73e8] hover:bg-[#1557b0] shadow-md shadow-blue-500/20 active:scale-[0.99] disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-2 mt-4"
                 >
                   {resetLoading ? (
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -205,13 +205,13 @@ export default function Login() {
           ) : (
             /* Standard Sign In Form */
             <div>
-              <h2 className="text-xl font-bold text-white tracking-tight mb-6">
+              <h2 className="text-xl font-bold text-slate-900 tracking-tight mb-6">
                 Sign In
               </h2>
 
               {resetSuccess && (
-                <div className="mb-6 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-2.5">
-                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                <div className="mb-6 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-center gap-2.5">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
                   <span>{resetSuccess}</span>
                 </div>
               )}
@@ -220,20 +220,20 @@ export default function Login() {
                 <motion.div 
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
-                  className="mb-6 p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2.5"
+                  className="mb-6 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs flex items-center gap-2.5"
                 >
-                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
                   <span>{error}</span>
                 </motion.div>
               )}
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 font-display">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2 font-display">
                     Email Address
                   </label>
                   <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
+                    <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
                       <Mail className="h-4 w-4" />
                     </span>
                     <input
@@ -242,14 +242,14 @@ export default function Login() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="developer@devforge.ai"
-                      className="w-full py-3 pl-10 pr-4 text-sm bg-slate-950/60 border border-white/10 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
+                      className="w-full py-3 pl-10 pr-4 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#1a73e8] focus:ring-2 focus:ring-[#1a73e8]/20 transition-all font-sans"
                     />
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 font-display">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 font-display">
                       Password
                     </label>
                     <button
@@ -258,13 +258,13 @@ export default function Login() {
                         setForgotEmail(email);
                         setShowForgotModal(true);
                       }}
-                      className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors font-medium cursor-pointer"
+                      className="text-xs text-[#1a73e8] hover:underline transition-colors font-semibold cursor-pointer"
                     >
                       Forgot Password?
                     </button>
                   </div>
                   <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
+                    <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
                       <Lock className="h-4 w-4" />
                     </span>
                     <input
@@ -273,12 +273,12 @@ export default function Login() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full py-3 pl-10 pr-10 text-sm bg-slate-950/60 border border-white/10 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
+                      className="w-full py-3 pl-10 pr-10 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#1a73e8] focus:ring-2 focus:ring-[#1a73e8]/20 transition-all font-sans"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                       title={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -289,7 +289,7 @@ export default function Login() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3.5 rounded-xl text-xs font-bold text-white uppercase tracking-wider bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-lg shadow-indigo-500/20 active:scale-[0.99] disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-2 mt-4"
+                  className="w-full py-3.5 rounded-xl text-xs font-bold text-white uppercase tracking-wider bg-[#1a73e8] hover:bg-[#1557b0] shadow-md shadow-blue-500/20 active:scale-[0.99] disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-2 mt-4"
                 >
                   {loading ? (
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -302,9 +302,9 @@ export default function Login() {
                 </button>
               </form>
 
-              <p className="mt-8 text-center text-xs text-slate-400">
+              <p className="mt-8 text-center text-xs text-slate-500">
                 New to DevForge AI?{' '}
-                <Link to="/register" className="text-indigo-400 font-semibold hover:text-indigo-300 transition-colors">
+                <Link to="/register" className="text-[#1a73e8] font-semibold hover:underline">
                   Create an account
                 </Link>
               </p>
@@ -322,50 +322,50 @@ export default function Login() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowForgotModal(false)}
-              className="fixed inset-0 bg-slate-950/80 backdrop-blur-md"
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative w-full max-w-md bg-slate-900 border border-white/10 rounded-3xl p-6 shadow-2xl z-10"
+              className="relative w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl z-10"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                  <div className="p-2 rounded-xl bg-blue-50 text-[#1a73e8] border border-blue-100">
                     <Mail className="h-4 w-4" />
                   </div>
-                  <h3 className="text-lg font-bold text-white">Reset Password</h3>
+                  <h3 className="text-lg font-bold text-slate-900">Reset Password</h3>
                 </div>
                 <button
                   onClick={() => setShowForgotModal(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <p className="text-xs text-slate-400 mb-5 leading-relaxed">
+              <p className="text-xs text-slate-500 mb-5 leading-relaxed">
                 Enter your registered email address and we will dispatch a secure password reset link to your inbox.
               </p>
 
               {forgotMessage && (
-                <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
                   <span>{forgotMessage}</span>
                 </div>
               )}
 
               {forgotError && (
-                <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
                   <span>{forgotError}</span>
                 </div>
               )}
 
               <form onSubmit={handleForgotSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
                     Your Email Address
                   </label>
                   <input
@@ -374,7 +374,7 @@ export default function Login() {
                     value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
                     placeholder="developer@devforge.ai"
-                    className="w-full py-2.5 px-3.5 text-sm bg-slate-950/60 border border-white/10 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+                    className="w-full py-2.5 px-3.5 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#1a73e8]"
                   />
                 </div>
 
@@ -382,14 +382,14 @@ export default function Login() {
                   <button
                     type="button"
                     onClick={() => setShowForgotModal(false)}
-                    className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-300 hover:bg-white/5 border border-white/10 transition-colors"
+                    className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 border border-slate-200 transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={forgotLoading}
-                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#1a73e8] hover:bg-[#1557b0] disabled:opacity-50 transition-colors"
                   >
                     {forgotLoading ? 'Dispatching Link...' : 'Send Reset Email'}
                   </button>
@@ -402,5 +402,6 @@ export default function Login() {
     </div>
   );
 }
+
 
 
