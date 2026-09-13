@@ -344,8 +344,8 @@ export default function ProjectDetail() {
                 {card.desc}
               </p>
 
-              <div className="mt-5 flex items-center gap-1 text-[9px] font-bold tracking-widest text-slate-400 uppercase font-display">
-                <span>Phase {i === 0 ? '2' : i === 1 ? '2' : i === 2 ? '3' : i === 3 ? '4' : i === 4 ? '3' : i === 5 ? '3' : '5'} integration</span>
+              <div className="mt-5 flex items-center gap-1 text-[9px] font-bold tracking-widest text-[#0071e3] uppercase font-display">
+                <span>Open Tool</span>
                 <ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
               </div>
             </Link>

@@ -61,7 +61,7 @@ export default function BugTracker() {
     if (!newTitle.trim()) return;
 
     try {
-      const { data } = await api.post('/bugs', {
+      await api.post('/bugs', {
         title: newTitle,
         description: newDesc,
         severity: newSeverity,
@@ -71,7 +71,7 @@ export default function BugTracker() {
         workspaceId
       });
 
-      setBugs([...bugs, data.bug]);
+      await fetchBugs();
       setShowCreateModal(false);
 
       // Reset
@@ -80,8 +80,6 @@ export default function BugTracker() {
       setNewSeverity('medium');
       setNewSteps('');
       setNewAssigneeId('');
-      
-      fetchBugs(); // reload to get populate
     } catch (err) {
       console.error(err);
     }
