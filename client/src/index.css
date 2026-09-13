@@ -91,9 +91,29 @@
 }
 
 /* Premium Button Styles */
+.btn-premium-primary {
+  background: linear-gradient(135deg, #0066ff 0%, #2563eb 100%);
+  color: #ffffff !important;
+  font-weight: 600;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 14px 0 rgba(0, 102, 255, 0.25);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-premium-primary:hover {
+  background: linear-gradient(135deg, #0052cc 0%, #1d4ed8 100%);
+  box-shadow: 0 6px 20px 0 rgba(0, 102, 255, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-premium-primary:active {
+  transform: translateY(0);
+}
+
 .btn-premium-brand {
   background: linear-gradient(135deg, #0066ff 0%, #2563eb 100%);
-  color: #ffffff;
+  color: #ffffff !important;
   font-weight: 600;
   border-radius: 12px;
   border: 1px solid transparent;
@@ -120,6 +140,29 @@
   background-color: #f8fafc;
   border-color: #cbd5e1;
   color: #0f172a;
+}
+
+/* Glass Inputs & Cards */
+.glass-input {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 0.75rem;
+  color: #0f172a;
+  transition: all 0.2s ease;
+}
+
+.glass-input:focus {
+  outline: none;
+  background: #ffffff;
+  border-color: #0066ff;
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.15);
+}
+
+.glass-card {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 1.25rem;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
 }
 
 /* Subtle Gradient Text */

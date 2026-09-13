@@ -173,16 +173,16 @@ export default function AiSuite() {
             <button
               type="submit"
               disabled={loading}
-              className="btn-premium-primary w-full py-3.5 rounded-xl text-xs font-semibold inline-flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="w-full py-3.5 px-6 rounded-xl text-xs font-semibold inline-flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-white bg-gradient-to-r from-[#0066ff] to-[#2563eb] hover:from-[#0052cc] hover:to-[#1d4ed8] shadow-md shadow-blue-500/20 active:scale-[0.99] transition-all"
             >
               {loading ? (
                 <>
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  Generating answers...
+                  <RefreshCw className="h-4 w-4 animate-spin text-white" />
+                  Processing Intelligence...
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-4 w-4" />
+                  <Sparkles className="h-4 w-4 text-white" />
                   Run AI Processor
                 </>
               )}
