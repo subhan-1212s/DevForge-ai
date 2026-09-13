@@ -39,14 +39,14 @@ function ProtectedRoute({ children }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#020617] text-slate-100 gap-4 font-sans">
-        <div className="w-12 h-12 rounded-xl bg-indigo-600/10 border border-indigo-500/25 flex items-center justify-center animate-pulse">
-          <Terminal className="h-6 w-6 text-indigo-400" />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8fafc] text-slate-800 gap-4 font-sans">
+        <div className="w-12 h-12 rounded-2xl bg-white border border-black/5 flex items-center justify-center shadow-md animate-pulse">
+          <Terminal className="h-6 w-6 text-[#0071e3]" />
         </div>
-        <div className="w-36 h-1.5 bg-slate-900 rounded-full overflow-hidden border border-white/5">
-          <div className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full animate-pulse" style={{ width: '80%' }} />
+        <div className="w-44 h-1.5 bg-slate-200 rounded-full overflow-hidden border border-black/5">
+          <div className="h-full bg-[#0071e3] rounded-full animate-pulse" style={{ width: '80%' }} />
         </div>
-        <p className="text-xs text-slate-400 font-sans tracking-wide">Connecting DevForge Workspace Environment...</p>
+        <p className="text-xs text-slate-500 font-semibold tracking-wide">Connecting DevForge Workspace Environment...</p>
       </div>
     );
   }

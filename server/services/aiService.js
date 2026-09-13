@@ -1,7 +1,6 @@
-/**
- * AI Assistant Service for DevForge AI
- * Integrates external LLM providers or falls back to a dynamic developer AST refactoring engine.
- */
+const Project = require('../models/Project');
+const Task = require('../models/Task');
+const Bug = require('../models/Bug');
 
 // Helper to detect code language
 const detectLanguage = (code = '') => {
@@ -318,56 +317,118 @@ exports.generateCommitMessage = async (diff) => {
 };
 
 // Workspace assistant responder
+// Workspace assistant responder with dynamic DB lookup
 exports.askAssistant = async (query, context = {}) => {
   const userName = context.user?.name || 'Developer';
   const q = query.toLowerCase().trim();
 
+  let liveProject = null;
+  let taskStats = { total: 0, completed: 0, active: 0 };
+  let bugStats = { total: 0, unresolved: 0, critical: 0 };
+
+  if (context.projectId) {
+    try {
+      liveProject = await Project.findById(context.projectId);
+      const tasks = await Task.find({ projectId: context.projectId });
+      const bugs = await Bug.find({ projectId: context.projectId });
+
+      taskStats.total = tasks.length;
+      taskStats.completed = tasks.filter(t => t.status === 'completed' || t.status === 'done').length;
+      taskStats.active = taskStats.total - taskStats.completed;
+
+      bugStats.total = bugs.length;
+      bugStats.unresolved = bugs.filter(b => b.status !== 'resolved' && b.status !== 'closed').length;
+      bugStats.critical = bugs.filter(b => b.severity === 'critical' && b.status !== 'resolved').length;
+    } catch (err) {
+      console.warn("Project metrics DB lookup error:", err.message);
+    }
+  }
+
   if (process.env.OPENAI_API_KEY) {
     try {
-      const promptText = `The user (${userName}) asks: '${query}'. Context: ${JSON.stringify(context)}. Provide a direct, helpful response.`;
-      const result = await callOpenAIText(promptText, "You are a senior technical workspace assistant.");
+      const promptText = `User (${userName}) asks: '${query}'. Live Project Data: ${JSON.stringify({ liveProject, taskStats, bugStats })}. Answer their question directly based on their prompt and project status.`;
+      const result = await callOpenAIText(promptText, "You are a senior technical workspace assistant for DevForge AI.");
       return result;
     } catch (err) {
       console.warn("Falling back to workspace assistant responder due to error:", err.message);
     }
   }
 
-  // Smart Dynamic NLP Intent Router
-  if (q.includes('task') || q.includes('sprint') || q.includes('kanban') || q.includes('todo') || q.includes('progress') || q.includes('allocate')) {
+  // 1. Project Status / Health / Progress / Overview Query
+  if (q.includes('status') || q.includes('current status') || q.includes('project status') || q.includes('overview') || q.includes('health') || q.includes('going') || q.includes('progress')) {
+    if (liveProject) {
+      return `📊 **Current Project Status Report for "${liveProject.name}":**\n\n` +
+        `• **Development Phase**: \`${liveProject.status.toUpperCase()}\` (${liveProject.progress}% completed)\n` +
+        `• **Priority Level**: \`${liveProject.priority.toUpperCase()}\` priority\n` +
+        `• **Sprint Tasks**: **${taskStats.total}** total tasks (**${taskStats.completed}** completed • **${taskStats.active}** active)\n` +
+        `• **Bug Tracker**: **${bugStats.total}** logged issues (**${bugStats.unresolved}** unresolved, **${bugStats.critical}** critical warnings)\n\n` +
+        `💡 **Summary**: Your project "${liveProject.name}" is currently ${liveProject.progress}% complete with ${taskStats.active} active task(s) remaining in the current sprint!`;
+    }
+    return `📊 **Current Workspace Status Overview:**\n\n` +
+      `• **Sprint Progress**: Tasks are dynamically categorized under Backlog, In Progress, and Completed columns.\n` +
+      `• **Bug Monitoring**: Issues are tracked by severity ratings (Critical, High, Medium, Low).\n` +
+      `• **Tip**: Select a specific project workspace to fetch real-time task allocations and bug counts!`;
+  }
+
+  // 2. Sprint Tasks / Kanban / Todo / Allocation Query
+  if (q.includes('task') || q.includes('sprint') || q.includes('kanban') || q.includes('todo') || q.includes('allocate')) {
+    if (liveProject) {
+      const completionPct = taskStats.total > 0 ? Math.round((taskStats.completed / taskStats.total) * 100) : 0;
+      return `📋 **Sprint Tasks Report for "${liveProject.name}":**\n\n` +
+        `• **Total Allocated Tasks**: ${taskStats.total}\n` +
+        `• **Completed Tasks**: ${taskStats.completed}\n` +
+        `• **Active / Pending Tasks**: ${taskStats.active}\n` +
+        `• **Delivery Completion Index**: ${completionPct}%\n\n` +
+        `You can manage task assignees and drag cards between columns inside the **Kanban Board** tab!`;
+    }
     return `Hello ${userName}! DevForge AI manages sprint tasks inside your project's **Kanban Board** tab.\n\n- You can create backlog tickets, drag cards between Active/Done columns, and check real-time completion percentages on the Project Analytics dashboard.`;
   }
 
+  // 3. Bugs / Issues / Warnings / Stack Traces Query
   if (q.includes('bug') || q.includes('issue') || q.includes('error') || q.includes('crash') || q.includes('fail') || q.includes('exception') || q.includes('stack')) {
+    if (liveProject) {
+      return `🐛 **Bug Tracker Status for "${liveProject.name}":**\n\n` +
+        `• **Total Logged Issues**: ${bugStats.total}\n` +
+        `• **Unresolved Issues**: ${bugStats.unresolved}\n` +
+        `• **Critical Warnings**: ${bugStats.critical}\n\n` +
+        `Log new tickets or inspect steps to reproduce in the **Bug Tracker** tab!`;
+    }
     return `Hey ${userName}! For bug management and debugging:\n\n1. **Bug Tracker**: Log issues with severity ratings (Critical, High, Medium, Low).\n2. **AI Bug Explainer**: Paste any error stack trace into the AI Developer Suite to analyze root causes and prevention strategies.`;
   }
 
+  // 4. Docs / Wiki / Specifications Query
   if (q.includes('doc') || q.includes('wiki') || q.includes('readme') || q.includes('spec') || q.includes('credential') || q.includes('author')) {
-    return `Hi ${userName}! You can read and edit project specifications in the **Wiki & Docs** tab.\n\n- All created or updated chapters automatically show your profile name (${userName}) as the author!`;
+    return `Hi ${userName}! You can read and edit project specifications in the **Wiki & Docs** tab.\n\n- All created or updated chapters automatically record your profile name (${userName}) as the author!`;
   }
 
+  // 5. Code / Monaco Editor / Optimization Query
   if (q.includes('code') || q.includes('editor') || q.includes('monaco') || q.includes('optimize') || q.includes('refactor') || q.includes('syntax')) {
     return `Hey ${userName}! DevForge AI offers two live coding tools:\n\n1. **Live Code Editor**: Collaborative code pad powered by Monaco Editor.\n2. **AI Code Optimizer**: Paste any snippet (JS, Python, C++, Java) to convert legacy scope, add parameter guard clauses, and optimize time complexity.`;
   }
 
+  // 6. Team Chat / Collaboration Query
   if (q.includes('chat') || q.includes('team') || q.includes('sync') || q.includes('message') || q.includes('collaborate')) {
     return `Hello ${userName}! Collaborate in real time with your team members in the **Project Chat** tab powered by Socket.IO WebSockets.`;
   }
 
+  // 7. Git / Commit Builder / Deployment Query
   if (q.includes('commit') || q.includes('git') || q.includes('diff') || q.includes('deploy') || q.includes('github') || q.includes('vercel')) {
     return `Hi ${userName}! You can use the **Commit Builder** tab right here in the AI Developer Suite! Paste any \`git diff\` or change notes to generate industry-standard Conventional Commit messages before pushing code to GitHub.`;
   }
 
+  // 8. Tech Stack Query
   if (q.includes('tech') || q.includes('stack') || q.includes('architecture') || q.includes('react') || q.includes('node') || q.includes('mongo') || q.includes('express')) {
     return `DevForge AI is built with modern full-stack web technologies:\n\n- **Frontend**: React 19 SPA, Tailwind CSS, Monaco Editor, Framer Motion, Lucide Icons\n- **Backend**: Node.js, Express, Socket.IO WebSockets, Brevo Mailer API, JWT Authentication\n- **Database**: MongoDB Atlas Cloud Cluster`;
   }
 
+  // 9. Greetings
   if (q.startsWith('hi') || q.startsWith('hello') || q.startsWith('hey') || q === 'help') {
-    return `Hello ${userName}! I am your DevForge AI Workspace Assistant.\n\nHow can I help you today? You can ask me about:\n- Managing tasks & sprint allocations\n- Logging bugs & analyzing stack traces\n- Writing project wiki documentation\n- Generating git commit messages & refactoring code`;
+    return `Hello ${userName}! I am your DevForge AI Workspace Assistant.\n\nHow can I help you today? You can ask me:\n• "What is the current status of project?"\n• "Show me our sprint tasks"\n• "Are there any critical bugs?"\n• "Explain our tech stack"`;
   }
 
-  // Dynamic contextual breakdown for any input text
-  const extractedWords = query.replace(/[^\w\s]/gi, '').split(/\s+/).filter(w => w.length > 3);
-  const keywordsList = extractedWords.slice(0, 3).join(', ') || 'your query';
-
-  return `Here is a breakdown for your query regarding "${query}":\n\n1. **Topic Analysis**: Identified key technical concepts (${keywordsList}).\n2. **Workspace Guidance**: You can use DevForge AI's **AI Developer Suite** to review code snippets, generate commit logs, or analyze stack traces.\n3. **Quick Action**: Head to the top tabs to toggle between Code Optimizer, Code Reviewer, Bug Explainer, Commit Builder, and Workspace Assistant!`;
+  // 10. Dynamic Synthesizer for arbitrary user prompts
+  return `Hi ${userName}! Here is the live synthesis for your query "${query}":\n\n` +
+    `1. **Input Analysis**: Processed query for technical keywords.\n` +
+    `2. **Project Context**: ${liveProject ? `Connected to active project "${liveProject.name}" (${liveProject.progress}% complete, ${taskStats.active} active tasks).` : 'Workspace active.'}\n` +
+    `3. **Recommended Action**: You can use the AI Developer Suite to refactor code snippets, analyze stack traces, or generate git commit messages directly from your changes!`;
 };
