@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import { useAuthStore } from '../store/authStore';
 import { 
   ArrowLeft, 
   BookOpen, 
@@ -48,6 +49,7 @@ const renderSimpleMarkdown = (text = '') => {
 export default function Wiki() {
   const { workspaceId, projectId } = useParams();
   const { currentWorkspace, fetchWorkspaceDetails } = useWorkspaceStore();
+  const { user } = useAuthStore();
 
   const [documents, setDocuments] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -284,7 +286,7 @@ export default function Wiki() {
                 <div className="border-b border-black/5 pb-3">
                   <h1 className="text-xl font-extrabold text-[#1d1d1f] font-display">{activeDoc.title}</h1>
                   <span className="text-[9px] text-slate-400 block mt-1">
-                    Written by {activeDoc.author?.name || 'Developer'} • Last updated {new Date(activeDoc.updatedAt).toLocaleDateString()}
+                    Written by {activeDoc.author?.name || user?.name || 'Project Member'} • Last updated {new Date(activeDoc.updatedAt).toLocaleDateString()}
                   </span>
                 </div>
                 

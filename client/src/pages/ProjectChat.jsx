@@ -118,7 +118,7 @@ export default function ProjectChat() {
                 {/* Message bubble */}
                 <div>
                   <div className={`flex items-center gap-1.5 text-[9px] text-slate-400 mb-0.5 ${isMe ? 'justify-end' : ''}`}>
-                    <span className="font-semibold text-slate-600">{msg.sender?.name || 'Developer'}</span>
+                    <span className="font-semibold text-slate-600">{msg.sender?.name || (isMe ? user?.name : 'Team Member')}</span>
                     <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
                   <div className={`p-3 rounded-2xl text-xs leading-relaxed whitespace-pre-wrap shadow-sm border ${isMe ? 'bg-[#0071e3] text-white border-transparent rounded-tr-none' : 'bg-white text-[#1d1d1f] border-black/5 rounded-tl-none'}`}>

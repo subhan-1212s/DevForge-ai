@@ -55,7 +55,11 @@ export default function AiSuite() {
         const currentInput = inputText;
         setInputText('');
 
-        const { data } = await api.post('/ai/assistant', { query: currentInput });
+        const { data } = await api.post('/ai/assistant', { 
+          query: currentInput,
+          projectId,
+          workspaceId
+        });
         setAssistantLogs(prev => [...prev, { sender: 'ai', text: data.response }]);
       }
     } catch (err) {
@@ -140,7 +144,7 @@ export default function AiSuite() {
                 {activeTab === 'optimize' && 'Paste code to optimize'}
                 {activeTab === 'review' && 'Paste code to review'}
                 {activeTab === 'bug' && 'Paste error log / stack trace'}
-                {activeTab === 'commit' && 'Paste git diff report'}
+                {activeTab === 'commit' && 'Paste git diff OR describe code changes'}
                 {activeTab === 'chat' && 'Query your Workspace Assistant'}
               </h3>
               
@@ -151,13 +155,19 @@ export default function AiSuite() {
                 rows={10}
                 placeholder={
                   activeTab === 'optimize' ? '// Write code here...\nfunction add(a, b) {\n  var total = a+b;\n  return total;\n}' :
-                  activeTab === 'review' ? '// Paste file contents here...' :
+                  activeTab === 'review' ? '// Paste file contents here...\nconst processData = (items) => { return items; };' :
                   activeTab === 'bug' ? 'TypeError: Cannot read properties of undefined (reading "map")\n  at project/dashboard line 42' :
-                  activeTab === 'commit' ? 'diff --git a/server.js b/server.js\n- console.log("running")\n+ server.listen(PORT)' :
-                  'Ask me: "Summarize sprint work", "Do I have pending tasks?", or "Search for bugs"...'
+                  activeTab === 'commit' ? 'Enter raw git diff OR describe your code changes, e.g.:\n- Added show password toggle to login page\n- Fixed 401 refresh token auth loop\n- Replaced hardcoded Developer name with user profile' :
+                  'Ask me anything about your project:\n• "What is our tech stack?"\n• "Where can I log bugs?"\n• "Summarize sprint task workflows"'
                 }
                 className="glass-input w-full p-3 font-mono text-xs resize-none flex-1 min-h-[220px]"
               />
+
+              {activeTab === 'commit' && (
+                <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">
+                  💡 <strong>Commit Builder Input Guide:</strong> You can paste raw terminal output from <code className="bg-slate-100 px-1 py-0.5 rounded font-mono">git diff</code> or type a simple bullet list of what you modified (e.g. <em>"Added password reset flow"</em>). The AI will generate a structured Conventional Commit message (<code className="bg-slate-100 px-1 py-0.5 rounded font-mono">feat(auth): ...</code>).
+                </p>
+              )}
             </div>
 
             <button

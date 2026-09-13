@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import { useAuthStore } from '../store/authStore';
 import { 
   ArrowLeft, 
   FileCode, 
@@ -16,7 +17,7 @@ import {
 import { motion } from 'framer-motion';
 
 const DEFAULT_FILES = [
-  { name: 'main.js', content: `// Collaborative JavaScript Code Pad\n\nconst greet = (user) => {\n  console.log(\`Welcome to DevForge AI, \${user}!\`);\n};\n\ngreet("Developer");\n`, language: 'javascript' },
+  { name: 'main.js', content: `// Collaborative JavaScript Code Pad\n\nconst greet = (userName) => {\n  console.log(\`Welcome to DevForge AI, \${userName}!\`);\n};\n\ngreet("User");\n`, language: 'javascript' },
   { name: 'index.html', content: `<!DOCTYPE html>\n<html>\n<head>\n  <title>DevForge AI Pad</title>\n</head>\n<body>\n  <h1>Collaborate in Realtime</h1>\n</body>\n</html>`, language: 'html' },
   { name: 'utils.py', content: `# Helper Functions\n\ndef calculate_metrics(tasks, bugs):\n    print(f"Active tasks: {tasks}, unresolved bugs: {bugs}")\n    return tasks + bugs\n`, language: 'python' }
 ];
@@ -24,6 +25,7 @@ const DEFAULT_FILES = [
 export default function CodePad() {
   const { workspaceId, projectId } = useParams();
   const { currentWorkspace, fetchWorkspaceDetails } = useWorkspaceStore();
+  const { user } = useAuthStore();
 
   const [files, setFiles] = useState(DEFAULT_FILES);
   const [activeFileIndex, setActiveFileIndex] = useState(0);
@@ -91,7 +93,7 @@ export default function CodePad() {
     setTimeout(() => {
       let output = '';
       if (activeFile.language === 'javascript') {
-        output = 'Welcome to DevForge AI, Developer!\nExecution finished with exit code 0.';
+        output = `Welcome to DevForge AI, ${user?.name || 'User'}!\nExecution finished with exit code 0.`;
       } else if (activeFile.language === 'python') {
         output = 'Active tasks: 5, unresolved bugs: 2\nExecution finished with exit code 0.';
       } else {

@@ -72,11 +72,11 @@ exports.generateCommit = async (req, res) => {
 
 exports.askAssistant = async (req, res) => {
   try {
-    const { query } = req.body;
+    const { query, projectId, workspaceId } = req.body;
     if (!query) {
       return res.status(400).json({ success: false, message: 'Query is required' });
     }
-    const response = await aiService.askAssistant(query);
+    const response = await aiService.askAssistant(query, { user: req.user, projectId, workspaceId });
     res.status(200).json({ success: true, response });
   } catch (error) {
     console.error(error);

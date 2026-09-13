@@ -264,11 +264,11 @@ exports.generateTasks = async (prompt) => {
   };
 };
 
-// Generates git commits dynamically from diff text
+// Generates git commits dynamically from diff text or change notes
 exports.generateCommitMessage = async (diff) => {
   if (process.env.OPENAI_API_KEY) {
     try {
-      const promptText = `Generate a git commit message for this diff: '${diff}'. Return a JSON object with key: 'commitMessage'.`;
+      const promptText = `Generate a conventional git commit message for this diff or change summary: '${diff}'. Return a JSON object with key: 'commitMessage'.`;
       const result = await callOpenAI(promptText, "You are an automated Git logger following Conventional Commit styles.");
       return result;
     } catch (err) {
@@ -276,34 +276,98 @@ exports.generateCommitMessage = async (diff) => {
     }
   }
 
-  const firstLine = diff.split('\n')[0] || 'code updates';
-  const cleanSummary = firstLine.replace(/^[+-]/, '').trim();
+  const lines = diff.trim().split('\n').filter(Boolean);
+  let rawHeader = lines[0] || 'update codebase logic';
+  
+  // Clean up git diff markers or leading list markers
+  let summary = rawHeader
+    .replace(/^diff --git a\/.*? b\//, '')
+    .replace(/^[+-]\s*/, '')
+    .replace(/^[-*•]\s*/, '')
+    .trim();
+
+  // Determine conventional commit type and scope dynamically based on keywords
+  const textLower = diff.toLowerCase();
+  let type = 'refactor';
+  let scope = 'core';
+
+  if (textLower.includes('fix') || textLower.includes('bug') || textLower.includes('error') || textLower.includes('token') || textLower.includes('auth') || textLower.includes('reset')) {
+    type = 'fix';
+    scope = (textLower.includes('auth') || textLower.includes('login') || textLower.includes('password')) ? 'auth' : 'bug-tracker';
+  } else if (textLower.includes('add') || textLower.includes('feat') || textLower.includes('create') || textLower.includes('new') || textLower.includes('ui') || textLower.includes('theme')) {
+    type = 'feat';
+    scope = textLower.includes('ui') || textLower.includes('theme') ? 'client-ui' : 'feature';
+  } else if (textLower.includes('doc') || textLower.includes('wiki') || textLower.includes('readme')) {
+    type = 'docs';
+    scope = 'wiki';
+  } else if (textLower.includes('test') || textLower.includes('spec')) {
+    type = 'test';
+    scope = 'testing';
+  }
+
+  const bulletPoints = lines.slice(0, 4).map(l => {
+    const cleaned = l.replace(/^diff --git a\/.*? b\//, '').replace(/^[+-]\s*/, '').replace(/^[-*•]\s*/, '').trim();
+    return cleaned ? `- ${cleaned}` : null;
+  }).filter(Boolean);
+
+  const bulletText = bulletPoints.length > 0 ? bulletPoints.join('\n') : '- Optimized component scope and updated state handlers';
 
   return {
-    commitMessage: `refactor(core): ${cleanSummary.substring(0, 50) || 'update module implementation'}\n\n- Refactor internal function logic and variable declarations\n- Add input parameter checks and error logging`
+    commitMessage: `${type}(${scope}): ${summary.substring(0, 60)}\n\n${bulletText}`
   };
 };
 
 // Workspace assistant responder
 exports.askAssistant = async (query, context = {}) => {
+  const userName = context.user?.name || 'Developer';
+  const q = query.toLowerCase().trim();
+
   if (process.env.OPENAI_API_KEY) {
     try {
-      const promptText = `The user is asking: '${query}'. Answer them directly. Context: ${JSON.stringify(context)}`;
-      const result = await callOpenAIText(promptText, "You are a workspace operations assistant summarizing team progress.");
+      const promptText = `The user (${userName}) asks: '${query}'. Context: ${JSON.stringify(context)}. Provide a direct, helpful response.`;
+      const result = await callOpenAIText(promptText, "You are a senior technical workspace assistant.");
       return result;
     } catch (err) {
       console.warn("Falling back to workspace assistant responder due to error:", err.message);
     }
   }
 
-  const q = query.toLowerCase();
-
-  if (q.includes('task') || q.includes('pending')) {
-    return "You can view and manage your team's sprint tasks directly inside the project's **Kanban Board** tab.";
-  }
-  if (q.includes('bug') || q.includes('issue')) {
-    return "Check the **Bug Tracker** tab to log, prioritize, and assign critical bug reports.";
+  // Smart Dynamic NLP Intent Router
+  if (q.includes('task') || q.includes('sprint') || q.includes('kanban') || q.includes('todo') || q.includes('progress') || q.includes('allocate')) {
+    return `Hello ${userName}! DevForge AI manages sprint tasks inside your project's **Kanban Board** tab.\n\n- You can create backlog tickets, drag cards between Active/Done columns, and check real-time completion percentages on the Project Analytics dashboard.`;
   }
 
-  return `I am your DevForge AI workspace assistant. I can help summarize tasks, explain stack traces, review codebase snippets, or generate sprint plans for your project.`;
+  if (q.includes('bug') || q.includes('issue') || q.includes('error') || q.includes('crash') || q.includes('fail') || q.includes('exception') || q.includes('stack')) {
+    return `Hey ${userName}! For bug management and debugging:\n\n1. **Bug Tracker**: Log issues with severity ratings (Critical, High, Medium, Low).\n2. **AI Bug Explainer**: Paste any error stack trace into the AI Developer Suite to analyze root causes and prevention strategies.`;
+  }
+
+  if (q.includes('doc') || q.includes('wiki') || q.includes('readme') || q.includes('spec') || q.includes('credential') || q.includes('author')) {
+    return `Hi ${userName}! You can read and edit project specifications in the **Wiki & Docs** tab.\n\n- All created or updated chapters automatically show your profile name (${userName}) as the author!`;
+  }
+
+  if (q.includes('code') || q.includes('editor') || q.includes('monaco') || q.includes('optimize') || q.includes('refactor') || q.includes('syntax')) {
+    return `Hey ${userName}! DevForge AI offers two live coding tools:\n\n1. **Live Code Editor**: Collaborative code pad powered by Monaco Editor.\n2. **AI Code Optimizer**: Paste any snippet (JS, Python, C++, Java) to convert legacy scope, add parameter guard clauses, and optimize time complexity.`;
+  }
+
+  if (q.includes('chat') || q.includes('team') || q.includes('sync') || q.includes('message') || q.includes('collaborate')) {
+    return `Hello ${userName}! Collaborate in real time with your team members in the **Project Chat** tab powered by Socket.IO WebSockets.`;
+  }
+
+  if (q.includes('commit') || q.includes('git') || q.includes('diff') || q.includes('deploy') || q.includes('github') || q.includes('vercel')) {
+    return `Hi ${userName}! You can use the **Commit Builder** tab right here in the AI Developer Suite! Paste any \`git diff\` or change notes to generate industry-standard Conventional Commit messages before pushing code to GitHub.`;
+  }
+
+  if (q.includes('tech') || q.includes('stack') || q.includes('architecture') || q.includes('react') || q.includes('node') || q.includes('mongo') || q.includes('express')) {
+    return `DevForge AI is built with modern full-stack web technologies:\n\n- **Frontend**: React 19 SPA, Tailwind CSS, Monaco Editor, Framer Motion, Lucide Icons\n- **Backend**: Node.js, Express, Socket.IO WebSockets, Brevo Mailer API, JWT Authentication\n- **Database**: MongoDB Atlas Cloud Cluster`;
+  }
+
+  if (q.startsWith('hi') || q.startsWith('hello') || q.startsWith('hey') || q === 'help') {
+    return `Hello ${userName}! I am your DevForge AI Workspace Assistant.\n\nHow can I help you today? You can ask me about:\n- Managing tasks & sprint allocations\n- Logging bugs & analyzing stack traces\n- Writing project wiki documentation\n- Generating git commit messages & refactoring code`;
+  }
+
+  // Dynamic contextual breakdown for any input text
+  const extractedWords = query.replace(/[^\w\s]/gi, '').split(/\s+/).filter(w => w.length > 3);
+  const keywordsList = extractedWords.slice(0, 3).join(', ') || 'your query';
+
+  return `Here is a breakdown for your query regarding "${query}":\n\n1. **Topic Analysis**: Identified key technical concepts (${keywordsList}).\n2. **Workspace Guidance**: You can use DevForge AI's **AI Developer Suite** to review code snippets, generate commit logs, or analyze stack traces.\n3. **Quick Action**: Head to the top tabs to toggle between Code Optimizer, Code Reviewer, Bug Explainer, Commit Builder, and Workspace Assistant!`;
 };

@@ -9,13 +9,15 @@ exports.createDocument = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Title, project, and workspace IDs are required' });
     }
 
-    const doc = await Document.create({
+    let doc = await Document.create({
       title,
       content: content || '',
       author: req.user._id,
       projectId,
       workspaceId
     });
+
+    doc = await doc.populate('author', 'name email avatar');
 
     res.status(201).json({ success: true, document: doc });
   } catch (error) {
@@ -59,7 +61,7 @@ exports.getDocumentDetails = async (req, res) => {
 // Update Document
 exports.updateDocument = async (req, res) => {
   try {
-    const doc = await Document.findById(req.params.id);
+    let doc = await Document.findById(req.params.id);
 
     if (!doc) {
       return res.status(404).json({ success: false, message: 'Document not found' });
@@ -71,6 +73,7 @@ exports.updateDocument = async (req, res) => {
     doc.content = content !== undefined ? content : doc.content;
 
     await doc.save();
+    doc = await doc.populate('author', 'name email avatar');
 
     res.status(200).json({ success: true, document: doc });
   } catch (error) {
