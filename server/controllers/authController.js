@@ -36,14 +36,16 @@ exports.register = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please provide all details' });
     }
 
+    const cleanEmail = email.trim().toLowerCase();
+
     // Check if email already registered
-    const emailExists = await User.findOne({ email });
+    const emailExists = await User.findOne({ email: cleanEmail });
     if (emailExists) {
       return res.status(400).json({ success: false, message: 'Email already exists' });
     }
 
     // Create user
-    const user = await User.create({ name, email, password });
+    const user = await User.create({ name: name.trim(), email: cleanEmail, password });
 
     // Generate tokens
     const accessToken = generateAccessToken(user._id);
@@ -79,16 +81,18 @@ exports.login = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please provide email and password' });
     }
 
+    const cleanEmail = email.trim().toLowerCase();
+
     // Find user (with password selected explicitly)
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email: cleanEmail }).select('+password');
     if (!user) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+      return res.status(401).json({ success: false, message: 'Invalid credentials. User does not exist.' });
     }
 
     // Check password
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+      return res.status(401).json({ success: false, message: 'Invalid credentials. Incorrect password.' });
     }
 
     // Generate tokens
