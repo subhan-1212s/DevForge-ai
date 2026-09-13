@@ -23,6 +23,16 @@ exports.createBug = async (req, res) => {
 
     bug = await bug.populate('assignee', 'name email avatar');
 
+    // Notify workspace teammates of new bug ticket
+    const { notifyWorkspaceTeammates } = require('../services/notificationService');
+    notifyWorkspaceTeammates({
+      senderId: req.user._id,
+      workspaceId,
+      projectId,
+      type: 'bug_logged',
+      message: `logged a ${(severity || 'medium').toUpperCase()} bug ticket: "${title}"`
+    }).catch(err => console.error("Notification dispatch error:", err));
+
     res.status(201).json({ success: true, bug });
   } catch (error) {
     console.error(error);
@@ -68,6 +78,16 @@ exports.updateBug = async (req, res) => {
     await bug.save();
     
     const updated = await Bug.findById(bug._id).populate('assignee', 'name email avatar');
+
+    // Notify workspace teammates of bug status update
+    const { notifyWorkspaceTeammates } = require('../services/notificationService');
+    notifyWorkspaceTeammates({
+      senderId: req.user._id,
+      workspaceId: bug.workspaceId,
+      projectId: bug.projectId,
+      type: 'bug_updated',
+      message: `updated bug ticket "${bug.title}" (Status: ${bug.status.toUpperCase()})`
+    }).catch(err => console.error("Notification dispatch error:", err));
 
     res.status(200).json({ success: true, bug: updated });
   } catch (error) {

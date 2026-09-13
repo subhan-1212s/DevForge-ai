@@ -87,6 +87,16 @@ exports.createTask = async (req, res) => {
       });
     }
 
+    // Notify workspace teammates of new sprint task
+    const { notifyWorkspaceTeammates } = require('../services/notificationService');
+    notifyWorkspaceTeammates({
+      senderId: req.user._id,
+      workspaceId,
+      projectId,
+      type: 'task_created',
+      message: `created sprint task: "${title}"`
+    }).catch(err => console.error("Notification dispatch error:", err));
+
     res.status(201).json({ success: true, task });
   } catch (error) {
     console.error(error);
@@ -163,6 +173,16 @@ exports.updateTask = async (req, res) => {
         taskId: task._id
       });
     }
+
+    // Notify workspace teammates of task update
+    const { notifyWorkspaceTeammates } = require('../services/notificationService');
+    notifyWorkspaceTeammates({
+      senderId: req.user._id,
+      workspaceId: task.workspaceId,
+      projectId: task.projectId,
+      type: 'task_updated',
+      message: `${activityText} for task: "${task.title}"`
+    }).catch(err => console.error("Notification dispatch error:", err));
 
     res.status(200).json({ success: true, task: updatedTask });
   } catch (error) {

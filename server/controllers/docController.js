@@ -19,6 +19,16 @@ exports.createDocument = async (req, res) => {
 
     doc = await doc.populate('author', 'name email avatar');
 
+    // Notify workspace teammates of new wiki document
+    const { notifyWorkspaceTeammates } = require('../services/notificationService');
+    notifyWorkspaceTeammates({
+      senderId: req.user._id,
+      workspaceId,
+      projectId,
+      type: 'wiki_created',
+      message: `created project documentation chapter: "${title}"`
+    }).catch(err => console.error("Notification dispatch error:", err));
+
     res.status(201).json({ success: true, document: doc });
   } catch (error) {
     console.error(error);
@@ -74,6 +84,16 @@ exports.updateDocument = async (req, res) => {
 
     await doc.save();
     doc = await doc.populate('author', 'name email avatar');
+
+    // Notify workspace teammates of wiki document update
+    const { notifyWorkspaceTeammates } = require('../services/notificationService');
+    notifyWorkspaceTeammates({
+      senderId: req.user._id,
+      workspaceId: doc.workspaceId,
+      projectId: doc.projectId,
+      type: 'wiki_updated',
+      message: `updated documentation chapter: "${doc.title}"`
+    }).catch(err => console.error("Notification dispatch error:", err));
 
     res.status(200).json({ success: true, document: doc });
   } catch (error) {

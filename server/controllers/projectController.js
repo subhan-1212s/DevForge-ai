@@ -87,6 +87,18 @@ exports.updateProject = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Project not found' });
     }
 
+    // Verify workspace role permission (Owner or Admin required to modify status/progress/settings)
+    const workspace = await Workspace.findById(project.workspaceId);
+    if (workspace) {
+      const isOwner = workspace.owner.toString() === req.user._id.toString();
+      const memberObj = workspace.members.find(m => m.user.toString() === req.user._id.toString());
+      const role = isOwner ? 'owner' : (memberObj ? memberObj.role : null);
+
+      if (!['owner', 'admin'].includes(role)) {
+        return res.status(403).json({ success: false, message: 'Access denied: Only Workspace Owners and Admins can modify project settings' });
+      }
+    }
+
     const { name, description, techStack, status, priority, deadline, progress, repositoryUrl } = req.body;
 
     project.name = name !== undefined ? name : project.name;
@@ -99,6 +111,16 @@ exports.updateProject = async (req, res) => {
     project.repositoryUrl = repositoryUrl !== undefined ? repositoryUrl : project.repositoryUrl;
 
     await project.save();
+
+    // Notify all workspace teammates of project settings update
+    const { notifyWorkspaceTeammates } = require('../services/notificationService');
+    notifyWorkspaceTeammates({
+      senderId: req.user._id,
+      workspaceId: project.workspaceId,
+      projectId: project._id,
+      type: 'project_updated',
+      message: `updated project "${project.name}" settings (Status: ${project.status.toUpperCase()}, Progress: ${project.progress}%)`
+    }).catch(err => console.error("Notification dispatch error:", err));
 
     res.status(200).json({ success: true, project });
   } catch (error) {
