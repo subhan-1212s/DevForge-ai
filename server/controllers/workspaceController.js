@@ -90,13 +90,18 @@ exports.updateMemberRole = async (req, res) => {
     const { role } = req.body;
     const { id, memberId } = req.params;
 
-    if (!['owner', 'admin', 'developer', 'viewer'].includes(role)) {
-      return res.status(400).json({ success: false, message: 'Invalid role specified' });
+    if (!['admin', 'developer', 'viewer'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'Invalid role. Only Admin, Developer, and Viewer roles can be assigned.' });
     }
 
     const workspace = await Workspace.findById(id);
     if (!workspace) {
       return res.status(404).json({ success: false, message: 'Workspace not found' });
+    }
+
+    // Workspace Creator/Owner role cannot be changed
+    if (workspace.owner.toString() === memberId) {
+      return res.status(400).json({ success: false, message: 'Workspace Owner role cannot be modified.' });
     }
 
     const member = workspace.members.find(m => m.user.toString() === memberId);
@@ -105,10 +110,6 @@ exports.updateMemberRole = async (req, res) => {
     }
 
     member.role = role;
-
-    if (role === 'owner') {
-      workspace.owner = memberId;
-    }
 
     await workspace.save();
     const updated = await Workspace.findById(id)

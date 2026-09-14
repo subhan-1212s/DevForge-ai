@@ -539,18 +539,23 @@ export default function WorkspaceDetail() {
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
-                          {/* Role Selector */}
-                          <select
-                            disabled={isMemOwner || (!isOwner && member.role === 'admin')}
-                            value={member.role}
-                            onChange={(e) => handleRoleChange(member.user?._id, e.target.value)}
-                            className="text-xs font-semibold p-1.5 rounded-lg border border-black/10 bg-white text-slate-700 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                          >
-                            <option value="owner">Owner</option>
-                            <option value="admin">Admin</option>
-                            <option value="developer">Developer</option>
-                            <option value="viewer">Viewer</option>
-                          </select>
+                          {/* Role Selector or Static Owner Badge */}
+                          {isMemOwner ? (
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-1 rounded-lg bg-amber-500/10 text-amber-700 border border-amber-500/20 flex items-center gap-1 font-display">
+                              <Crown className="h-3 w-3 text-amber-500" /> Owner
+                            </span>
+                          ) : (
+                            <select
+                              disabled={!isOwner && member.role === 'admin'}
+                              value={member.role}
+                              onChange={(e) => handleRoleChange(member.user?._id, e.target.value)}
+                              className="text-xs font-semibold p-1.5 rounded-lg border border-black/10 bg-white text-slate-700 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                              <option value="admin">Admin</option>
+                              <option value="developer">Developer</option>
+                              <option value="viewer">Viewer</option>
+                            </select>
+                          )}
 
                           {/* Remove member button */}
                           {!isMemOwner && !isCurrentUser && (
