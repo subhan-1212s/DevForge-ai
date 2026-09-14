@@ -52,6 +52,62 @@ export const useWorkspaceStore = create((set, get) => ({
     }
   },
 
+  updateWorkspace: async (id, updateData) => {
+    set({ loading: true, error: null });
+    try {
+      const { data } = await api.put(`/workspaces/${id}`, updateData);
+      set((state) => ({
+        currentWorkspace: { ...state.currentWorkspace, ...data.workspace },
+        loading: false
+      }));
+      return data.workspace;
+    } catch (error) {
+      set({ error: error.response?.data?.message || 'Error updating workspace', loading: false });
+      return null;
+    }
+  },
+
+  updateMemberRole: async (workspaceId, memberId, role) => {
+    set({ loading: true, error: null });
+    try {
+      const { data } = await api.put(`/workspaces/${workspaceId}/members/${memberId}/role`, { role });
+      set({ currentWorkspace: data.workspace, loading: false });
+      return data.workspace;
+    } catch (error) {
+      set({ error: error.response?.data?.message || 'Error updating member role', loading: false });
+      return null;
+    }
+  },
+
+  removeMember: async (workspaceId, memberId) => {
+    set({ loading: true, error: null });
+    try {
+      const { data } = await api.delete(`/workspaces/${workspaceId}/members/${memberId}`);
+      set({ currentWorkspace: data.workspace, loading: false });
+      return data.workspace;
+    } catch (error) {
+      set({ error: error.response?.data?.message || 'Error removing member', loading: false });
+      return null;
+    }
+  },
+
+  regenerateInviteCode: async (workspaceId) => {
+    set({ loading: true, error: null });
+    try {
+      const { data } = await api.post(`/workspaces/${workspaceId}/regenerate-invite`);
+      set((state) => ({
+        currentWorkspace: state.currentWorkspace 
+          ? { ...state.currentWorkspace, inviteCode: data.inviteCode } 
+          : null,
+        loading: false
+      }));
+      return data.inviteCode;
+    } catch (error) {
+      set({ error: error.response?.data?.message || 'Error regenerating invite code', loading: false });
+      return null;
+    }
+  },
+
   joinWorkspace: async (inviteCode) => {
     set({ loading: true, error: null });
     try {

@@ -62,6 +62,118 @@ exports.getWorkspaceDetails = async (req, res) => {
   }
 };
 
+// Update Workspace Settings (Owner / Admin)
+exports.updateWorkspace = async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    const workspace = await Workspace.findById(req.params.id);
+
+    if (!workspace) {
+      return res.status(404).json({ success: false, message: 'Workspace not found' });
+    }
+
+    if (name) workspace.name = name;
+    if (description !== undefined) workspace.description = description;
+
+    await workspace.save();
+
+    res.status(200).json({ success: true, workspace });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Failed to update workspace' });
+  }
+};
+
+// Update Member Role (Owner / Admin)
+exports.updateMemberRole = async (req, res) => {
+  try {
+    const { role } = req.body;
+    const { id, memberId } = req.params;
+
+    if (!['owner', 'admin', 'developer', 'viewer'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'Invalid role specified' });
+    }
+
+    const workspace = await Workspace.findById(id);
+    if (!workspace) {
+      return res.status(404).json({ success: false, message: 'Workspace not found' });
+    }
+
+    const member = workspace.members.find(m => m.user.toString() === memberId);
+    if (!member) {
+      return res.status(404).json({ success: false, message: 'Member not found in workspace' });
+    }
+
+    member.role = role;
+
+    if (role === 'owner') {
+      workspace.owner = memberId;
+    }
+
+    await workspace.save();
+    const updated = await Workspace.findById(id)
+      .populate('members.user', 'name email avatar')
+      .populate('owner', 'name email avatar')
+      .populate('projects');
+
+    res.status(200).json({ success: true, workspace: updated });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Failed to update member role' });
+  }
+};
+
+// Remove Member (Owner / Admin)
+exports.removeMember = async (req, res) => {
+  try {
+    const { id, memberId } = req.params;
+
+    const workspace = await Workspace.findById(id);
+    if (!workspace) {
+      return res.status(404).json({ success: false, message: 'Workspace not found' });
+    }
+
+    if (workspace.owner.toString() === memberId) {
+      return res.status(400).json({ success: false, message: 'Cannot remove workspace owner' });
+    }
+
+    workspace.members = workspace.members.filter(m => m.user.toString() !== memberId);
+    await workspace.save();
+
+    await User.findByIdAndUpdate(memberId, {
+      $pull: { workspaces: id }
+    });
+
+    const updated = await Workspace.findById(id)
+      .populate('members.user', 'name email avatar')
+      .populate('owner', 'name email avatar')
+      .populate('projects');
+
+    res.status(200).json({ success: true, workspace: updated });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Failed to remove member' });
+  }
+};
+
+// Regenerate Invite Code (Owner / Admin)
+exports.regenerateInviteCode = async (req, res) => {
+  try {
+    const workspace = await Workspace.findById(req.params.id);
+    if (!workspace) {
+      return res.status(404).json({ success: false, message: 'Workspace not found' });
+    }
+
+    workspace.inviteCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+    await workspace.save();
+
+    res.status(200).json({ success: true, inviteCode: workspace.inviteCode });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Failed to regenerate invite code' });
+  }
+};
+
 // Join Workspace via invite code
 exports.joinWorkspace = async (req, res) => {
   try {
@@ -108,16 +220,13 @@ exports.leaveWorkspace = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Workspace not found' });
     }
 
-    // Owner cannot leave workspace without transferring ownership or deleting
     if (workspace.owner.toString() === req.user._id.toString()) {
       return res.status(400).json({ success: false, message: 'Owner cannot leave workspace. Delete or transfer ownership instead.' });
     }
 
-    // Remove from workspace members
     workspace.members = workspace.members.filter(m => m.user.toString() !== req.user._id.toString());
     await workspace.save();
 
-    // Remove from user workspaces
     await User.findByIdAndUpdate(req.user._id, {
       $pull: { workspaces: workspace._id }
     });
@@ -138,19 +247,16 @@ exports.deleteWorkspace = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Workspace not found' });
     }
 
-    // Only owner can delete workspace
     if (workspace.owner.toString() !== req.user._id.toString()) {
       return res.status(403).json({ success: false, message: 'Only workspace owner can delete it' });
     }
 
-    // Remove workspace from all members' User models
     const memberIds = workspace.members.map(m => m.user);
     await User.updateMany(
       { _id: { $in: memberIds } },
       { $pull: { workspaces: workspace._id } }
     );
 
-    // Delete the workspace itself
     await workspace.deleteOne();
 
     res.status(200).json({ success: true, message: 'Workspace deleted successfully' });
