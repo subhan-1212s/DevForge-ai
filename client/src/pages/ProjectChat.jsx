@@ -4,6 +4,7 @@ import { socket } from '../services/socket';
 import api from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import { usePresenceStore } from '../store/presenceStore';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Send, MessageSquare, User as UserIcon, Smile } from 'lucide-react';
 
@@ -11,6 +12,7 @@ export default function ProjectChat() {
   const { workspaceId, projectId } = useParams();
   const { user } = useAuthStore();
   const { currentWorkspace, fetchWorkspaceDetails } = useWorkspaceStore();
+  const { isUserOnline } = usePresenceStore();
 
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
@@ -188,20 +190,24 @@ export default function ProjectChat() {
           </div>
         ) : (
           messages.map((msg, i) => {
-            const senderId = (msg.sender?._id || msg.sender || '').toString();
+            const senderId = (msg.sender?._id || msg.sender?.id || msg.sender || '').toString();
             const isMe = userId && senderId && userId === senderId;
+            const isOnline = isUserOnline(senderId);
             return (
               <div 
                 key={msg._id || i}
                 className={`flex gap-3 max-w-[75%] ${isMe ? 'ml-auto flex-row-reverse' : ''}`}
               >
                 {/* User avatar */}
-                <div className="w-7 h-7 rounded-full bg-slate-200 border border-black/5 flex items-center justify-center font-bold text-[10px] text-slate-600 overflow-hidden shrink-0">
-                  {msg.sender?.avatar ? (
-                    <img src={msg.sender.avatar} alt="Sender avatar" className="w-full h-full object-cover" />
-                  ) : (
-                    msg.sender?.name ? msg.sender.name.substring(0, 2).toUpperCase() : 'US'
-                  )}
+                <div className="relative shrink-0">
+                  <div className="w-7 h-7 rounded-full bg-slate-200 border border-black/5 flex items-center justify-center font-bold text-[10px] text-slate-600 overflow-hidden shrink-0">
+                    {msg.sender?.avatar ? (
+                      <img src={msg.sender.avatar} alt="Sender avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      msg.sender?.name ? msg.sender.name.substring(0, 2).toUpperCase() : 'US'
+                    )}
+                  </div>
+                  <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
                 </div>
 
                 {/* Message bubble */}

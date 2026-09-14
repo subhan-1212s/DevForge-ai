@@ -27,6 +27,16 @@ exports.createProject = async (req, res) => {
       $push: { projects: project._id }
     });
 
+    // Notify all workspace teammates of new project creation
+    const { notifyWorkspaceTeammates } = require('../services/notificationService');
+    notifyWorkspaceTeammates({
+      senderId: req.user._id,
+      workspaceId,
+      projectId: project._id,
+      type: 'project_created',
+      message: `created a new project: "${project.name}"`
+    }).catch(err => console.error("Notification dispatch error:", err));
+
     res.status(201).json({ success: true, project });
   } catch (error) {
     console.error(error);
@@ -145,6 +155,16 @@ exports.deleteProject = async (req, res) => {
 
     // Delete the project
     await project.deleteOne();
+
+    // Notify all workspace teammates of project deletion
+    const { notifyWorkspaceTeammates } = require('../services/notificationService');
+    notifyWorkspaceTeammates({
+      senderId: req.user._id,
+      workspaceId: project.workspaceId,
+      projectId: project._id,
+      type: 'project_deleted',
+      message: `deleted project: "${project.name}"`
+    }).catch(err => console.error("Notification dispatch error:", err));
 
     res.status(200).json({ success: true, message: 'Project deleted successfully' });
   } catch (error) {

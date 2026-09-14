@@ -6,7 +6,7 @@ exports.getNotifications = async (req, res) => {
     const notifications = await Notification.find({ user: req.user._id })
       .populate('sender', 'name email avatar')
       .sort({ createdAt: -1 })
-      .limit(50);
+      .limit(100);
 
     res.status(200).json({ success: true, notifications });
   } catch (error) {
@@ -42,5 +42,30 @@ exports.markAllAsRead = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Updating notifications failed' });
+  }
+};
+
+// Delete Single Notification
+exports.deleteNotification = async (req, res) => {
+  try {
+    const notification = await Notification.findOneAndDelete({ _id: req.params.id, user: req.user._id });
+    if (!notification) {
+      return res.status(404).json({ success: false, message: 'Notification not found' });
+    }
+    res.status(200).json({ success: true, message: 'Notification deleted' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Deleting notification failed' });
+  }
+};
+
+// Delete All Notifications
+exports.deleteAllNotifications = async (req, res) => {
+  try {
+    await Notification.deleteMany({ user: req.user._id });
+    res.status(200).json({ success: true, message: 'All notifications cleared' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Clearing notifications failed' });
   }
 };

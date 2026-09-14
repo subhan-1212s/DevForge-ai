@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useAuthStore } from '../store/authStore';
+import { usePresenceStore } from '../store/presenceStore';
 import { motion } from 'framer-motion';
 import { 
   FolderGit, 
@@ -30,6 +31,7 @@ export default function WorkspaceDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { isUserOnline } = usePresenceStore();
   const { 
     currentWorkspace, 
     currentWorkspaceRole, 
@@ -43,6 +45,8 @@ export default function WorkspaceDetail() {
     regenerateInviteCode,
     deleteWorkspace
   } = useWorkspaceStore();
+
+  const onlineMembersCount = currentWorkspace?.members?.filter(m => isUserOnline(m.user?._id || m.user?.id || m.user)).length || 0;
 
   const [copied, setCopied] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
@@ -296,7 +300,13 @@ export default function WorkspaceDetail() {
               </div>
               <div>
                 <p className="text-[10px] uppercase font-bold text-slate-400 font-display">Team Members</p>
-                <p className="text-lg font-bold text-[#1d1d1f] mt-0.5">{currentWorkspace.members?.length || 1}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-lg font-bold text-[#1d1d1f]">{currentWorkspace.members?.length || 1}</p>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200/60 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    {onlineMembersCount} Online
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -416,26 +426,37 @@ export default function WorkspaceDetail() {
 
               <div className="bg-white rounded-2xl p-4.5 border border-black/5 shadow-sm space-y-4">
                 <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
-                  {currentWorkspace.members && currentWorkspace.members.map((member, i) => (
-                    <div key={i} className="flex items-center justify-between gap-3 p-2 rounded-xl bg-[#f5f5f7] border border-black/5">
-                      <div className="flex items-center gap-2 overflow-hidden">
-                        {member.user?.avatar ? (
-                          <img src={member.user.avatar} alt="Avatar" className="w-7 h-7 rounded-full object-cover shrink-0" />
-                        ) : (
-                          <div className="w-7 h-7 rounded-full bg-slate-200 border border-black/5 flex items-center justify-center font-bold text-[10px] text-slate-600 shrink-0">
-                            {member.user?.name ? member.user.name.substring(0, 2).toUpperCase() : 'US'}
+                  {currentWorkspace.members && currentWorkspace.members.map((member, i) => {
+                    const isOnline = isUserOnline(member.user?._id || member.user?.id || member.user);
+                    return (
+                      <div key={i} className="flex items-center justify-between gap-3 p-2 rounded-xl bg-[#f5f5f7] border border-black/5">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <div className="relative shrink-0">
+                            {member.user?.avatar ? (
+                              <img src={member.user.avatar} alt="Avatar" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                            ) : (
+                              <div className="w-7 h-7 rounded-full bg-slate-200 border border-black/5 flex items-center justify-center font-bold text-[10px] text-slate-600 shrink-0">
+                                {member.user?.name ? member.user.name.substring(0, 2).toUpperCase() : 'US'}
+                              </div>
+                            )}
+                            <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-white ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
                           </div>
-                        )}
-                        <div className="overflow-hidden">
-                          <p className="text-xs font-semibold text-[#1d1d1f] truncate">{member.user?.name}</p>
-                          <p className="text-[9px] text-slate-500 truncate">{member.user?.email}</p>
+                          <div className="overflow-hidden">
+                            <p className="text-xs font-semibold text-[#1d1d1f] truncate">{member.user?.name}</p>
+                            <p className="text-[9px] text-slate-500 truncate">{member.user?.email}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full ${isOnline ? 'bg-emerald-50 text-emerald-600 font-semibold' : 'bg-slate-100 text-slate-400'}`}>
+                            {isOnline ? 'Online' : 'Offline'}
+                          </span>
+                          <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${member.role === 'owner' ? 'bg-[#0071e3]/10 text-[#0071e3]' : member.role === 'admin' ? 'bg-purple-50 text-purple-600' : 'bg-slate-200 text-slate-600'}`}>
+                            {member.role}
+                          </span>
                         </div>
                       </div>
-                      <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${member.role === 'owner' ? 'bg-[#0071e3]/10 text-[#0071e3]' : member.role === 'admin' ? 'bg-purple-50 text-purple-600' : 'bg-slate-200 text-slate-600'}`}>
-                        {member.role}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -516,23 +537,30 @@ export default function WorkspaceDetail() {
                   {currentWorkspace.members && currentWorkspace.members.map((member) => {
                     const isMemOwner = member.role === 'owner' || (currentWorkspace.owner?._id || currentWorkspace.owner) === member.user?._id;
                     const isCurrentUser = member.user?._id === userId;
+                    const isOnline = isUserOnline(member.user?._id || member.user?.id || member.user);
 
                     return (
                       <div key={member.user?._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-[#f5f5f7] border border-black/5">
                         <div className="flex items-center gap-3 overflow-hidden">
-                          {member.user?.avatar ? (
-                            <img src={member.user.avatar} alt="Avatar" className="w-8 h-8 rounded-full object-cover shrink-0" />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-slate-200 border border-black/5 flex items-center justify-center font-bold text-xs text-slate-600 shrink-0">
-                              {member.user?.name ? member.user.name.substring(0, 2).toUpperCase() : 'US'}
-                            </div>
-                          )}
+                          <div className="relative shrink-0">
+                            {member.user?.avatar ? (
+                              <img src={member.user.avatar} alt="Avatar" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-slate-200 border border-black/5 flex items-center justify-center font-bold text-xs text-slate-600 shrink-0">
+                                {member.user?.name ? member.user.name.substring(0, 2).toUpperCase() : 'US'}
+                              </div>
+                            )}
+                            <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                          </div>
                           <div className="overflow-hidden">
                             <div className="flex items-center gap-2">
                               <p className="text-xs font-bold text-[#1d1d1f] truncate">{member.user?.name}</p>
                               {isCurrentUser && (
                                 <span className="text-[9px] bg-[#0071e3]/10 text-[#0071e3] px-1.5 py-0.2 rounded font-bold uppercase">You</span>
                               )}
+                              <span className={`text-[9px] font-medium px-1.5 py-0.2 rounded-full ${isOnline ? 'bg-emerald-50 text-emerald-600 font-semibold border border-emerald-200/60' : 'bg-slate-200/60 text-slate-400'}`}>
+                                {isOnline ? 'Online' : 'Offline'}
+                              </span>
                             </div>
                             <p className="text-[10px] text-slate-500 truncate">{member.user?.email}</p>
                           </div>

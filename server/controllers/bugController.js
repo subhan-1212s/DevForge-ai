@@ -106,6 +106,17 @@ exports.deleteBug = async (req, res) => {
     }
 
     await bug.deleteOne();
+
+    // Notify workspace teammates of bug deletion
+    const { notifyWorkspaceTeammates } = require('../services/notificationService');
+    notifyWorkspaceTeammates({
+      senderId: req.user._id,
+      workspaceId: bug.workspaceId,
+      projectId: bug.projectId,
+      type: 'bug_deleted',
+      message: `deleted bug ticket: "${bug.title}"`
+    }).catch(err => console.error("Notification dispatch error:", err));
+
     res.status(200).json({ success: true, message: 'Bug deleted successfully' });
   } catch (error) {
     console.error(error);

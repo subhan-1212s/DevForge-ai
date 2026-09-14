@@ -243,6 +243,17 @@ exports.deleteTask = async (req, res) => {
     }
 
     await task.deleteOne();
+
+    // Notify workspace teammates of task deletion
+    const { notifyWorkspaceTeammates } = require('../services/notificationService');
+    notifyWorkspaceTeammates({
+      senderId: req.user._id,
+      workspaceId: task.workspaceId,
+      projectId: task.projectId,
+      type: 'task_deleted',
+      message: `deleted task: "${task.title}"`
+    }).catch(err => console.error("Notification dispatch error:", err));
+
     res.status(200).json({ success: true, message: 'Task deleted successfully' });
   } catch (error) {
     console.error(error);

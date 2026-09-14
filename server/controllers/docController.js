@@ -112,6 +112,17 @@ exports.deleteDocument = async (req, res) => {
     }
 
     await doc.deleteOne();
+
+    // Notify workspace teammates of wiki document deletion
+    const { notifyWorkspaceTeammates } = require('../services/notificationService');
+    notifyWorkspaceTeammates({
+      senderId: req.user._id,
+      workspaceId: doc.workspaceId,
+      projectId: doc.projectId,
+      type: 'wiki_deleted',
+      message: `deleted documentation chapter: "${doc.title}"`
+    }).catch(err => console.error("Notification dispatch error:", err));
+
     res.status(200).json({ success: true, message: 'Document deleted successfully' });
   } catch (error) {
     console.error(error);

@@ -90,6 +90,15 @@ exports.updateWorkspace = async (req, res) => {
 
     await workspace.save();
 
+    // Notify workspace teammates of settings change
+    const { notifyWorkspaceTeammates } = require('../services/notificationService');
+    notifyWorkspaceTeammates({
+      senderId: req.user._id,
+      workspaceId: workspace._id,
+      type: 'workspace_settings_updated',
+      message: `updated workspace details: name set to "${workspace.name}"`
+    }).catch(err => console.error("Notification dispatch error:", err));
+
     res.status(200).json({ success: true, workspace });
   } catch (error) {
     console.error(error);
@@ -129,6 +138,15 @@ exports.updateMemberRole = async (req, res) => {
       .populate('members.user', 'name email avatar')
       .populate('owner', 'name email avatar')
       .populate('projects');
+
+    // Notify workspace teammates of role update
+    const { notifyWorkspaceTeammates } = require('../services/notificationService');
+    notifyWorkspaceTeammates({
+      senderId: req.user._id,
+      workspaceId: workspace._id,
+      type: 'member_role_updated',
+      message: `updated member role to ${role.toUpperCase()}`
+    }).catch(err => console.error("Notification dispatch error:", err));
 
     res.status(200).json({ success: true, workspace: updated });
   } catch (error) {
@@ -217,6 +235,15 @@ exports.joinWorkspace = async (req, res) => {
     await User.findByIdAndUpdate(req.user._id, {
       $push: { workspaces: workspace._id }
     });
+
+    // Notify workspace teammates of new member joined
+    const { notifyWorkspaceTeammates } = require('../services/notificationService');
+    notifyWorkspaceTeammates({
+      senderId: req.user._id,
+      workspaceId: workspace._id,
+      type: 'member_joined',
+      message: `joined the workspace`
+    }).catch(err => console.error("Notification dispatch error:", err));
 
     res.status(200).json({ success: true, message: 'Workspace joined successfully', workspace });
   } catch (error) {
