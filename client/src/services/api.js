@@ -14,7 +14,7 @@ const api = axios.create({
 // Request interceptor to attach JWT token
 api.interceptors.request.use(
   (config) => {
-    const token = useAuthStore.getState().accessToken;
+    const token = useAuthStore.getState().accessToken || localStorage.getItem('devforge_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

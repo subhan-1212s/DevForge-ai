@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import DashboardLayout from './layouts/DashboardLayout';
 import Login from './pages/Login';
@@ -14,39 +14,20 @@ import Wiki from './pages/Wiki';
 import BugTracker from './pages/BugTracker';
 import AiSuite from './pages/AiSuite';
 import Analytics from './pages/Analytics';
-import { Terminal } from 'lucide-react';
 
 function ProtectedRoute({ children }) {
   const { user, loading, checkAuth } = useAuthStore();
 
   useEffect(() => {
-    let mounted = true;
-    if (!user) {
-      checkAuth();
-    }
-    // Safety timer to prevent infinite loading state if backend is unresponsive
-    const timer = setTimeout(() => {
-      if (mounted && useAuthStore.getState().loading) {
-        useAuthStore.setState({ loading: false });
-      }
-    }, 2500);
-
-    return () => {
-      mounted = false;
-      clearTimeout(timer);
-    };
+    // Perform background check to ensure session validity
+    checkAuth();
   }, []);
 
-  if (loading) {
+  // Show a minimal spinner only if there's no stored user and initial check is active
+  if (loading && !user) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8fafc] text-slate-800 gap-4 font-sans">
-        <div className="w-12 h-12 rounded-2xl bg-white border border-black/5 flex items-center justify-center shadow-md animate-pulse">
-          <Terminal className="h-6 w-6 text-[#0071e3]" />
-        </div>
-        <div className="w-44 h-1.5 bg-slate-200 rounded-full overflow-hidden border border-black/5">
-          <div className="h-full bg-[#0071e3] rounded-full animate-pulse" style={{ width: '80%' }} />
-        </div>
-        <p className="text-xs text-slate-500 font-semibold tracking-wide">Connecting DevForge Workspace Environment...</p>
+      <div className="min-h-screen flex items-center justify-center bg-[#f8fafc]">
+        <div className="w-6 h-6 border-2 border-[#0071e3] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
