@@ -32,72 +32,79 @@ async function configureDemoSuite() {
       Notification.deleteMany({})
     ]);
 
-    // Set exact password '123456' for both accounts
+    // Single-hash password '123456'
     const hashedPassword = await bcrypt.hash('123456', 10);
 
     // 1. Mohamed Subhan - OWNER
     let userOwner = await User.findOne({ email: 'mohamedsubhan155@gmail.com' });
     if (!userOwner) {
-      userOwner = await User.create({
+      userOwner = new User({
         name: 'Mohamed Subhan',
         email: 'mohamedsubhan155@gmail.com',
-        password: hashedPassword,
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80'
       });
+      userOwner.password = hashedPassword;
+      await User.collection.insertOne(userOwner.toObject());
       console.log('Created Owner Account: mohamedsubhan155@gmail.com');
     } else {
-      userOwner.password = hashedPassword;
-      userOwner.name = 'Mohamed Subhan';
-      await userOwner.save();
+      await User.updateOne({ _id: userOwner._id }, { $set: { password: hashedPassword, name: 'Mohamed Subhan' } });
       console.log('Updated Owner Account Password to 123456: mohamedsubhan155@gmail.com');
     }
 
     // 2. SKG Admin - ADMIN
     let userAdmin = await User.findOne({ email: 'skg795223@gmail.com' });
     if (!userAdmin) {
-      userAdmin = await User.create({
+      userAdmin = new User({
         name: 'SKG Admin',
         email: 'skg795223@gmail.com',
-        password: hashedPassword,
         avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=250&q=80'
       });
+      userAdmin.password = hashedPassword;
+      await User.collection.insertOne(userAdmin.toObject());
       console.log('Created Admin Account: skg795223@gmail.com');
     } else {
-      userAdmin.password = hashedPassword;
-      userAdmin.name = 'SKG Admin';
-      await userAdmin.save();
+      await User.updateOne({ _id: userAdmin._id }, { $set: { password: hashedPassword, name: 'SKG Admin' } });
       console.log('Updated Admin Account Password to 123456: skg795223@gmail.com');
     }
 
     // 3. Demo Teammates (Sarah, Marcus, Elena)
     let userSarah = await User.findOne({ email: 'sarah.dev@devforge.ai' });
     if (!userSarah) {
-      userSarah = await User.create({
+      userSarah = new User({
         name: 'Sarah Chen',
         email: 'sarah.dev@devforge.ai',
-        password: hashedPassword,
         avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=250&q=80'
       });
+      userSarah.password = hashedPassword;
+      await User.collection.insertOne(userSarah.toObject());
+    } else {
+      await User.updateOne({ _id: userSarah._id }, { $set: { password: hashedPassword } });
     }
 
     let userMarcus = await User.findOne({ email: 'marcus.qa@devforge.ai' });
     if (!userMarcus) {
-      userMarcus = await User.create({
+      userMarcus = new User({
         name: 'Marcus Vance',
         email: 'marcus.qa@devforge.ai',
-        password: hashedPassword,
         avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=250&q=80'
       });
+      userMarcus.password = hashedPassword;
+      await User.collection.insertOne(userMarcus.toObject());
+    } else {
+      await User.updateOne({ _id: userMarcus._id }, { $set: { password: hashedPassword } });
     }
 
     let userElena = await User.findOne({ email: 'elena.ai@devforge.ai' });
     if (!userElena) {
-      userElena = await User.create({
+      userElena = new User({
         name: 'Elena Rostova',
         email: 'elena.ai@devforge.ai',
-        password: hashedPassword,
         avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=250&q=80'
       });
+      userElena.password = hashedPassword;
+      await User.collection.insertOne(userElena.toObject());
+    } else {
+      await User.updateOne({ _id: userElena._id }, { $set: { password: hashedPassword } });
     }
 
     // 4. Create Workspace with mohamedsubhan155@gmail.com as OWNER & skg795223@gmail.com as ADMIN
