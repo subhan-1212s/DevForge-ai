@@ -18,11 +18,17 @@ export default function ProjectChat() {
   const [error, setError] = useState('');
 
   const messagesEndRef = useRef(null);
+  const userRef = useRef(user);
+
+  // Keep userRef updated without re-triggering socket room re-subscriptions
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   const fetchMessages = async () => {
     try {
       const { data } = await api.get(`/messages?workspaceId=${workspaceId}&projectId=${projectId}`);
-      setMessages(data.messages);
+      setMessages(data.messages || []);
     } catch (err) {
       setError('Failed to load chat logs.');
     } finally {
@@ -36,19 +42,45 @@ export default function ProjectChat() {
     }
     fetchMessages();
 
+    // Helper to join room when socket is connected
+    const joinRoom = () => {
+      if (socket.connected) {
+        if (projectId) {
+          socket.emit('join_project', projectId);
+        } else if (workspaceId) {
+          socket.emit('join_workspace', workspaceId);
+        }
+      }
+    };
+
     // Socket Connection Setup
     if (!socket.connected) {
       socket.connect();
+    } else {
+      joinRoom();
     }
-    if (projectId) {
-      socket.emit('join_project', projectId);
-    } else if (workspaceId) {
-      socket.emit('join_workspace', workspaceId);
-    }
+
+    socket.on('connect', joinRoom);
 
     const handleReceiveMessage = (msg) => {
       setMessages((prev) => {
+        // If message with same _id already exists, return prev
         if (prev.some((m) => m._id === msg._id)) return prev;
+
+        // Check if this incoming socket message replaces an optimistic temp message from me
+        const currentUser = userRef.current;
+        const currentUserId = (currentUser?.id || currentUser?._id || '').toString();
+        const msgSenderId = (msg.sender?._id || msg.sender || '').toString();
+
+        if (msgSenderId && currentUserId && msgSenderId === currentUserId) {
+          const tempIdx = prev.findIndex((m) => m.isOptimistic && m.text === msg.text);
+          if (tempIdx !== -1) {
+            const updated = [...prev];
+            updated[tempIdx] = msg;
+            return updated;
+          }
+        }
+
         return [...prev, msg];
       });
     };
@@ -56,9 +88,12 @@ export default function ProjectChat() {
     socket.on('receive_message', handleReceiveMessage);
 
     return () => {
+      socket.off('connect', joinRoom);
       socket.off('receive_message', handleReceiveMessage);
       if (projectId) {
         socket.emit('leave_project', projectId);
+      } else if (workspaceId) {
+        socket.emit('leave_workspace', workspaceId);
       }
     };
   }, [workspaceId, projectId]);
@@ -75,8 +110,27 @@ export default function ProjectChat() {
     const currentText = inputText.trim();
     setInputText('');
 
+    // Instant optimistic update for 0ms latency display
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const tempMsg = {
+      _id: tempId,
+      text: currentText,
+      workspaceId,
+      projectId,
+      sender: user ? {
+        _id: user.id || user._id,
+        name: user.name || 'You',
+        avatar: user.avatar,
+        email: user.email
+      } : { _id: 'me', name: 'You' },
+      createdAt: new Date().toISOString(),
+      isOptimistic: true
+    };
+
+    setMessages((prev) => [...prev, tempMsg]);
+
     try {
-      // 1. Send via HTTP API (Guarantees DB save & populated sender)
+      // Send via HTTP API (Saves to DB and server broadcasts socket event to room)
       const { data } = await api.post('/messages', {
         text: currentText,
         workspaceId,
@@ -85,26 +139,25 @@ export default function ProjectChat() {
 
       if (data.success && data.message) {
         setMessages((prev) => {
+          const tempIdx = prev.findIndex((m) => m._id === tempId);
+          if (tempIdx !== -1) {
+            const updated = [...prev];
+            updated[tempIdx] = data.message;
+            return updated;
+          }
           if (prev.some((m) => m._id === data.message._id)) return prev;
           return [...prev, data.message];
         });
       }
-
-      // 2. Broadcast via Socket.IO if connected
-      if (socket.connected) {
-        socket.emit('send_message', {
-          text: currentText,
-          workspaceId,
-          projectId,
-          senderId: user?.id || user?._id
-        });
-      }
     } catch (err) {
       console.error('Failed to send chat message:', err);
+      // Remove failed optimistic message
+      setMessages((prev) => prev.filter((m) => m._id !== tempId));
+      setError('Failed to send message. Please try again.');
     }
   };
 
-  const userId = user?.id || user?._id;
+  const userId = (user?.id || user?._id || '').toString();
 
   return (
     <div className="max-w-4xl mx-auto h-[80vh] flex flex-col bg-white border border-black/5 rounded-2xl shadow-sm overflow-hidden font-sans text-[#1d1d1f]">
@@ -135,7 +188,8 @@ export default function ProjectChat() {
           </div>
         ) : (
           messages.map((msg, i) => {
-            const isMe = msg.sender?._id === userId || msg.sender === userId;
+            const senderId = (msg.sender?._id || msg.sender || '').toString();
+            const isMe = userId && senderId && userId === senderId;
             return (
               <div 
                 key={msg._id || i}
@@ -153,7 +207,7 @@ export default function ProjectChat() {
                 {/* Message bubble */}
                 <div>
                   <div className={`flex items-center gap-1.5 text-[9px] text-slate-400 mb-0.5 ${isMe ? 'justify-end' : ''}`}>
-                    <span className="font-semibold text-slate-600">{msg.sender?.name || (isMe ? user?.name : 'Team Member')}</span>
+                    <span className="font-semibold text-slate-600">{msg.sender?.name || (isMe ? (user?.name || 'You') : 'Team Member')}</span>
                     <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
                   <div className={`p-3 rounded-2xl text-xs leading-relaxed whitespace-pre-wrap shadow-sm border ${isMe ? 'bg-[#0071e3] text-white border-transparent rounded-tr-none' : 'bg-white text-[#1d1d1f] border-black/5 rounded-tl-none'}`}>
