@@ -20,9 +20,9 @@ async function seedData() {
     await mongoose.connect(mongoUri);
     console.log('Connected to MongoDB Atlas successfully.');
 
-    console.log('Cleaning existing collections...');
+    // PRESERVE ALL EXISTING USER ACCOUNTS! Do NOT delete User collection!
+    console.log('Cleaning non-user collections (preserving all registered user accounts)...');
     await Promise.all([
-      User.deleteMany({}),
       Workspace.deleteMany({}),
       Project.deleteMany({}),
       Task.deleteMany({}),
@@ -31,62 +31,95 @@ async function seedData() {
       Document.deleteMany({}),
       Notification.deleteMany({})
     ]);
-    console.log('All previous data cleared.');
 
-    // 1. Create Demo Users
-    console.log('Creating demo users...');
+    // Find all existing registered user accounts in DB
+    const existingUsers = await User.find({});
+    console.log(`Found ${existingUsers.length} existing user accounts in DB.`);
+
+    // Ensure demo teammates exist (Sarah, Marcus, Elena) for realistic team collaboration
     const hashedPassword = await bcrypt.hash('Password123!', 10);
 
-    const userAlex = await User.create({
-      name: 'Alex Morgan',
-      email: 'demo@devforge.ai',
-      password: hashedPassword,
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80'
-    });
+    let userSarah = await User.findOne({ email: 'sarah.dev@devforge.ai' });
+    if (!userSarah) {
+      userSarah = await User.create({
+        name: 'Sarah Chen',
+        email: 'sarah.dev@devforge.ai',
+        password: hashedPassword,
+        avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=250&q=80'
+      });
+    }
 
-    const userSarah = await User.create({
-      name: 'Sarah Chen',
-      email: 'sarah.dev@devforge.ai',
-      password: hashedPassword,
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=250&q=80'
-    });
+    let userMarcus = await User.findOne({ email: 'marcus.qa@devforge.ai' });
+    if (!userMarcus) {
+      userMarcus = await User.create({
+        name: 'Marcus Vance',
+        email: 'marcus.qa@devforge.ai',
+        password: hashedPassword,
+        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=250&q=80'
+      });
+    }
 
-    const userMarcus = await User.create({
-      name: 'Marcus Vance',
-      email: 'marcus.qa@devforge.ai',
-      password: hashedPassword,
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=250&q=80'
-    });
+    let userElena = await User.findOne({ email: 'elena.ai@devforge.ai' });
+    if (!userElena) {
+      userElena = await User.create({
+        name: 'Elena Rostova',
+        email: 'elena.ai@devforge.ai',
+        password: hashedPassword,
+        avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=250&q=80'
+      });
+    }
 
-    const userElena = await User.create({
-      name: 'Elena Rostova',
-      email: 'elena.ai@devforge.ai',
-      password: hashedPassword,
-      avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=250&q=80'
-    });
+    // Determine primary owner from existing non-demo user accounts or fallback
+    const primaryUser = existingUsers.find(u => 
+      u.email !== 'sarah.dev@devforge.ai' && 
+      u.email !== 'marcus.qa@devforge.ai' && 
+      u.email !== 'elena.ai@devforge.ai'
+    ) || existingUsers[0];
 
-    // 2. Create Workspace
-    console.log('Creating Enterprise Demo Workspace...');
+    let ownerUser = primaryUser;
+    if (!ownerUser) {
+      ownerUser = await User.create({
+        name: 'Alex Morgan',
+        email: 'demo@devforge.ai',
+        password: hashedPassword,
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80'
+      });
+    }
+
+    console.log(`Setting Workspace Owner to: ${ownerUser.name} (${ownerUser.email})`);
+
+    // Build members list: ownerUser is Owner, plus any other registered users as Owner/Admin
+    const membersList = [
+      { user: ownerUser._id, role: 'owner' },
+      { user: userSarah._id, role: 'admin' },
+      { user: userMarcus._id, role: 'developer' },
+      { user: userElena._id, role: 'developer' }
+    ];
+
+    // Add all other existing registered users to membersList as Owner/Admin
+    for (const u of existingUsers) {
+      if (!membersList.some(m => m.user.toString() === u._id.toString())) {
+        membersList.push({ user: u._id, role: 'owner' });
+      }
+    }
+
+    // Create Workspace
     const workspace = await Workspace.create({
       name: 'DevForge AI Enterprise Lab',
       description: 'Next-generation collaborative developer workspace powered by Gemini AI engines, real-time sync, and automated sprint pipelines.',
       inviteCode: 'DEVFORGE',
-      owner: userAlex._id,
-      members: [
-        { user: userAlex._id, role: 'owner' },
-        { user: userSarah._id, role: 'admin' },
-        { user: userMarcus._id, role: 'developer' },
-        { user: userElena._id, role: 'developer' }
-      ]
+      owner: ownerUser._id,
+      members: membersList
     });
 
-    // Link workspace to users
+    // Update all users' workspaces array
+    const allMemberUserIds = membersList.map(m => m.user);
     await User.updateMany(
-      { _id: { $in: [userAlex._id, userSarah._id, userMarcus._id, userElena._id] } },
-      { $push: { workspaces: workspace._id } }
+      { _id: { $in: allMemberUserIds } },
+      { $addToSet: { workspaces: workspace._id } }
     );
 
-    // 3. Create Demo Projects
+    // Create Demo Projects
     console.log('Creating demo projects...');
     const project1 = await Project.create({
       name: 'Gemini Core Orchestrator',
@@ -115,7 +148,7 @@ async function seedData() {
     workspace.projects = [project1._id, project2._id];
     await workspace.save();
 
-    // 4. Create Kanban Tasks
+    // Create Sprint Tasks (Kanban Board)
     console.log('Creating sprint tasks...');
     await Task.create([
       {
@@ -123,7 +156,7 @@ async function seedData() {
         description: 'Refactor Socket.IO room subscriptions to join on connect event and eliminate re-subscribing teardowns.',
         status: 'done',
         priority: 'critical',
-        assignee: userAlex._id,
+        assignee: ownerUser._id,
         projectId: project1._id,
         workspaceId: workspace._id,
         checklist: [
@@ -135,7 +168,7 @@ async function seedData() {
           { user: userSarah._id, text: 'Tested locally on 3 sockets concurrently. Latency is under 20ms!' }
         ],
         activity: [
-          { user: userAlex._id, text: 'Moved task from In Progress to Done' }
+          { user: ownerUser._id, text: 'Moved task from In Progress to Done' }
         ]
       },
       {
@@ -183,8 +216,6 @@ async function seedData() {
         projectId: project1._id,
         workspaceId: workspace._id
       },
-
-      // Project 2 Tasks
       {
         title: 'Build SVG Donut Efficiency Chart for Project Dashboard',
         description: 'Calculate real-time task completion ratios and render smooth SVG progress rings.',
@@ -199,13 +230,13 @@ async function seedData() {
         description: 'Store user state in localStorage and eliminate full-page environment loading screens.',
         status: 'done',
         priority: 'critical',
-        assignee: userAlex._id,
+        assignee: ownerUser._id,
         projectId: project2._id,
         workspaceId: workspace._id
       }
     ]);
 
-    // 5. Create Messages (Collaboration Chat)
+    // Create Collaboration Chat Messages
     console.log('Creating collaboration chat messages...');
     await Message.create([
       {
@@ -230,7 +261,7 @@ async function seedData() {
         createdAt: new Date(Date.now() - 3600 * 1000 * 1)
       },
       {
-        sender: userAlex._id,
+        sender: ownerUser._id,
         text: 'Fantastic team effort! Collaboration Chat latency is under 20ms and instant page reloads are activated. Ready for judge demo presentation! 🚀',
         workspaceId: workspace._id,
         projectId: project1._id,
@@ -238,7 +269,7 @@ async function seedData() {
       }
     ]);
 
-    // 6. Create Bugs (Bug Tracker & QA Log)
+    // Create QA Bug Tickets
     console.log('Creating QA bug tickets...');
     await Bug.create([
       {
@@ -247,7 +278,7 @@ async function seedData() {
         severity: 'high',
         status: 'resolved',
         stepsToReproduce: '1. Expire access token\n2. Trigger 10 parallel REST calls\n3. Verify queue locks',
-        assignee: userAlex._id,
+        assignee: ownerUser._id,
         projectId: project1._id,
         workspaceId: workspace._id
       },
@@ -273,7 +304,7 @@ async function seedData() {
       }
     ]);
 
-    // 7. Create Project Wiki & Architecture Specs
+    // Create Project Wiki Specs
     console.log('Creating Wiki specs...');
     await Document.create([
       {
@@ -294,7 +325,7 @@ DevForge AI is an advanced agentic developer workspace engineered for real-time 
 1. **0ms Latency Optimistic Chat UI**: Immediate optimistic rendering with background socket room synchronization.
 2. **Instant Auth Hydration**: Sub-second page reloads via persistent localStorage hydration.
 3. **Role-Based Access Control**: Granular workspace roles (Owner 👑, Admin ⚡, Developer 💻, Viewer 👁️) with integrated Admin Control Panel.`,
-        author: userAlex._id,
+        author: ownerUser._id,
         projectId: project1._id,
         workspaceId: workspace._id
       },
@@ -309,17 +340,17 @@ All API endpoints enforce strict JSON Web Token (JWT) validation and Workspace M
 - **Workspace Admin ⚡**: Full member moderation, project creation/deletion, and invite code management.
 - **Developer 💻**: Project creation, sprint card management, bug ticket logging, and collaboration chat.
 - **Viewer 👁️**: Read-only access to projects, tasks, wiki docs, and telemetry analytics.`,
-        author: userAlex._id,
+        author: ownerUser._id,
         projectId: project1._id,
         workspaceId: workspace._id
       }
     ]);
 
-    // 8. Create Notifications
+    // Create Notifications
     console.log('Creating demo notifications...');
     await Notification.create([
       {
-        user: userAlex._id,
+        user: ownerUser._id,
         sender: userSarah._id,
         type: 'task_assigned',
         message: 'Sarah Chen assigned you to task "Optimize WebSocket latency for multi-user collaboration chat"',
@@ -328,7 +359,7 @@ All API endpoints enforce strict JSON Web Token (JWT) validation and Workspace M
         projectId: project1._id
       },
       {
-        user: userAlex._id,
+        user: ownerUser._id,
         sender: userMarcus._id,
         type: 'project_updated',
         message: 'Marcus Vance deployed Brevo email API service integration',
@@ -339,11 +370,9 @@ All API endpoints enforce strict JSON Web Token (JWT) validation and Workspace M
     ]);
 
     console.log('\n======================================================');
-    console.log('🎉 DEMO DATA SEEDED SUCCESSFULLY FOR JUDGE PRESENTATION!');
+    console.log('🎉 DEMO WORKSPACE ATTACHED TO YOUR ACCOUNT SUCCESSFULLY!');
     console.log('======================================================');
-    console.log('Demo Account Credentials:');
-    console.log('  Email:    demo@devforge.ai');
-    console.log('  Password: Password123!');
+    console.log(`Workspace Owner: ${ownerUser.name} (${ownerUser.email})`);
     console.log('Workspace Details:');
     console.log('  Workspace Name: DevForge AI Enterprise Lab');
     console.log('  Invite Code:    DEVFORGE');

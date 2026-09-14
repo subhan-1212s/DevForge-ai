@@ -32,6 +32,19 @@ exports.createWorkspace = async (req, res) => {
 // Get all workspaces for current user
 exports.getUserWorkspaces = async (req, res) => {
   try {
+    // Automatically attach Demo Workspace to logged-in user as Owner if present
+    const demoWs = await Workspace.findOne({ inviteCode: 'DEVFORGE' });
+    if (demoWs) {
+      const isMember = demoWs.members.some(m => m.user.toString() === req.user._id.toString());
+      if (!isMember) {
+        demoWs.members.push({ user: req.user._id, role: 'owner' });
+        await demoWs.save();
+        await User.findByIdAndUpdate(req.user._id, {
+          $addToSet: { workspaces: demoWs._id }
+        });
+      }
+    }
+
     const workspaces = await Workspace.find({
       'members.user': req.user._id
     }).populate('owner', 'name email avatar');
